@@ -31,7 +31,13 @@ export async function middleware(request: NextRequest) {
     }
 
     try {
-      await jwtVerify(token, new TextEncoder().encode(auditSecret));
+      const { payload } = await jwtVerify(
+        token,
+        new TextEncoder().encode(auditSecret),
+      );
+      if (payload.role !== "audit") {
+        return NextResponse.redirect(new URL("/audit/login", request.url));
+      }
       return NextResponse.next();
     } catch {
       return NextResponse.redirect(new URL("/audit/login", request.url));
@@ -97,8 +103,11 @@ async function auditTokenValid(
   secret: string,
 ): Promise<boolean> {
   try {
-    await jwtVerify(token, new TextEncoder().encode(secret));
-    return true;
+    const { payload } = await jwtVerify(
+      token,
+      new TextEncoder().encode(secret),
+    );
+    return payload.role === "audit";
   } catch {
     return false;
   }

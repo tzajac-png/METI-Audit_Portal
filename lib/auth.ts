@@ -27,8 +27,8 @@ export async function verifyAuditSessionToken(token: string): Promise<boolean> {
   const secret = getSecretBytes();
   if (!secret) return false;
   try {
-    await jwtVerify(token, secret);
-    return true;
+    const { payload } = await jwtVerify(token, secret);
+    return payload.role === "audit";
   } catch {
     return false;
   }

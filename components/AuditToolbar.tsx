@@ -17,7 +17,10 @@ export function AuditToolbar() {
   }
 
   const link = (href: string, label: string) => {
-    const active = pathname === href;
+    const active =
+      href === "/audit/courses"
+        ? pathname === href || pathname.startsWith("/audit/courses/")
+        : pathname === href;
     return (
       <Link
         href={href}

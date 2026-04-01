@@ -9,6 +9,7 @@ import type {
   InstructorUploadCategory,
   InstructorUploadEntry,
 } from "@/lib/instructor-uploads-store";
+import { readApiErrorMessage } from "@/lib/read-api-error";
 
 type Props = {
   instructorId: string;
@@ -41,11 +42,11 @@ export function InstructorDocumentUploads({ instructorId }: Props) {
     try {
       const res = await fetch(
         `/api/instructor-uploads?instructorId=${encodeURIComponent(instructorId)}`,
+        { credentials: "include" },
       );
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
         throw new Error(
-          typeof j.error === "string" ? j.error : "Failed to load uploads",
+          await readApiErrorMessage(res, "Failed to load uploads"),
         );
       }
       const data = (await res.json()) as {
@@ -80,12 +81,10 @@ export function InstructorDocumentUploads({ instructorId }: Props) {
       const res = await fetch("/api/instructor-uploads", {
         method: "POST",
         body: fd,
+        credentials: "include",
       });
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(
-          typeof j.error === "string" ? j.error : "Upload failed",
-        );
+        throw new Error(await readApiErrorMessage(res, "Upload failed"));
       }
       await load();
     } catch (e) {
@@ -105,6 +104,7 @@ export function InstructorDocumentUploads({ instructorId }: Props) {
       const res = await fetch("/api/instructor-uploads", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           instructorId,
           category,
@@ -112,9 +112,8 @@ export function InstructorDocumentUploads({ instructorId }: Props) {
         }),
       });
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
         throw new Error(
-          typeof j.error === "string" ? j.error : "Could not save date",
+          await readApiErrorMessage(res, "Could not save date"),
         );
       }
       setExpirations((prev) => ({
@@ -150,12 +149,10 @@ export function InstructorDocumentUploads({ instructorId }: Props) {
       const q = new URLSearchParams({ instructorId, entryId });
       const res = await fetch(`/api/instructor-uploads?${q.toString()}`, {
         method: "DELETE",
+        credentials: "include",
       });
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(
-          typeof j.error === "string" ? j.error : "Delete failed",
-        );
+        throw new Error(await readApiErrorMessage(res, "Delete failed"));
       }
       await load();
     } catch (e) {

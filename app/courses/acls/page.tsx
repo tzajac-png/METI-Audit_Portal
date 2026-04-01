@@ -8,7 +8,12 @@ export default async function AclsCoursesPage() {
   try {
     const { courses, fetchedAt } = await fetchProgramCourseSummaries("ACLS");
     const auditByCode = Object.fromEntries(
-      courses.map((c) => [c.courseCode, getAuditDisplayStatus(c.courseCode)]),
+      await Promise.all(
+        courses.map(async (c) => [
+          c.courseCode,
+          await getAuditDisplayStatus(c.courseCode),
+        ] as const),
+      ),
     );
     return (
       <ProgramCourseList

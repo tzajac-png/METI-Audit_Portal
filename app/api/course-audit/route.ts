@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   if (!courseCode) {
     return NextResponse.json({ error: "courseCode is required" }, { status: 400 });
   }
-  const s = getAuditDisplayStatus(courseCode);
+  const s = await getAuditDisplayStatus(courseCode);
   return NextResponse.json({
     auditStatus: s.status,
     auditedAt: s.auditedAt,

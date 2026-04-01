@@ -1,6 +1,11 @@
+import { get } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import fs from "fs";
 import { getDashboardSessionValid } from "@/lib/auth";
+import {
+  blobReadWriteOptions,
+  isInstructorBlobStorageConfigured,
+} from "@/lib/instructor-vercel-blob";
 import {
   filePathForStoredName,
   getUploadEntry,
@@ -26,12 +31,34 @@ export async function GET(request: Request) {
     );
   }
 
-  const found = getUploadEntry(instructorId, entryId);
+  const found = await getUploadEntry(instructorId, entryId);
   if (!found) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   const { entry } = found;
+  const filename = entry.originalName.replace(/[^\w.\- ()]/g, "_");
+
+  if (entry.blobUrl && isInstructorBlobStorageConfigured()) {
+    const result = await get(entry.blobUrl, {
+      access: "private",
+      ...blobReadWriteOptions(),
+    });
+    if (!result || result.statusCode !== 200 || !result.stream) {
+      return NextResponse.json(
+        { error: "File not available" },
+        { status: 404 },
+      );
+    }
+    return new NextResponse(result.stream, {
+      status: 200,
+      headers: {
+        "Content-Type": entry.mimeType,
+        "Content-Disposition": `attachment; filename="${filename}"`,
+      },
+    });
+  }
+
   if (!entry.storedName) {
     return NextResponse.json(
       { error: "This file is not stored on the server" },
@@ -44,7 +71,6 @@ export async function GET(request: Request) {
   }
 
   const buf = fs.readFileSync(filePath);
-  const filename = entry.originalName.replace(/[^\w.\- ()]/g, "_");
 
   return new NextResponse(buf, {
     status: 200,

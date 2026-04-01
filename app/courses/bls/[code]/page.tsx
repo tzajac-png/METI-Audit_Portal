@@ -27,7 +27,7 @@ export default async function BlsCourseDetailPage({ params }: Props) {
 
   const { rows: students, fetchedAt } = await fetchStudentRows();
   const matched = filterStudentsByCourseCode(students, course.courseCode);
-  const audit = getAuditDisplayStatus(course.courseCode);
+  const audit = await getAuditDisplayStatus(course.courseCode);
 
   return (
     <BlsCourseDetail

@@ -9,7 +9,12 @@ export default async function HeartsaverCoursesPage() {
     const { courses, fetchedAt } =
       await fetchProgramCourseSummaries("Heartsaver");
     const auditByCode = Object.fromEntries(
-      courses.map((c) => [c.courseCode, getAuditDisplayStatus(c.courseCode)]),
+      await Promise.all(
+        courses.map(async (c) => [
+          c.courseCode,
+          await getAuditDisplayStatus(c.courseCode),
+        ] as const),
+      ),
     );
     return (
       <ProgramCourseList

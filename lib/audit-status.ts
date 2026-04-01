@@ -15,8 +15,10 @@ export type AuditDisplayStatus = {
  * Matches the “All classes — audit status” table: Complete when the latest
  * audit record has every compliance checkbox set.
  */
-export function getAuditDisplayStatus(courseCode: string): AuditDisplayStatus {
-  const rec = getLatestAuditForCourse(courseCode.trim());
+export async function getAuditDisplayStatus(
+  courseCode: string,
+): Promise<AuditDisplayStatus> {
+  const rec = await getLatestAuditForCourse(courseCode.trim());
   if (!rec) {
     return {
       status: "Pending",
