@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { InstructorCourseSummary } from "@/lib/instructor-courses";
 import type { AuditRecord } from "@/lib/audit-records-store";
 import type { ComplianceChecklist } from "@/lib/audit-constants";
@@ -22,9 +22,15 @@ type Props = {
   courses: InstructorCourseSummary[];
   /** When set, load this record and run in edit mode */
   editRecordId?: string;
+  /** Prefill course dropdown + snapshot fields (e.g. from `/audit/courses/new?courseCode=…`) */
+  initialCourseCode?: string;
 };
 
-export function AuditRecordForm({ courses, editRecordId }: Props) {
+export function AuditRecordForm({
+  courses,
+  editRecordId,
+  initialCourseCode,
+}: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -41,6 +47,8 @@ export function AuditRecordForm({ courses, editRecordId }: Props) {
   const [notes, setNotes] = useState("");
   const [compliance, setCompliance] = useState<ComplianceChecklist>(emptyCompliance());
   const [file, setFile] = useState<File | null>(null);
+
+  const appliedInitialCourse = useRef(false);
 
   const [labels, setLabels] =
     useState<typeof COMPLIANCE_FIELD_LABELS>(COMPLIANCE_FIELD_LABELS);
@@ -106,6 +114,15 @@ export function AuditRecordForm({ courses, editRecordId }: Props) {
       cancelled = true;
     };
   }, [editRecordId]);
+
+  useEffect(() => {
+    if (editRecordId || appliedInitialCourse.current) return;
+    const code = initialCourseCode?.trim();
+    if (!code) return;
+    if (!courses.some((c) => c.courseCode === code)) return;
+    applyCourseSelection(code);
+    appliedInitialCourse.current = true;
+  }, [courses, initialCourseCode, editRecordId, applyCourseSelection]);
 
   useEffect(() => {
     if (editRecordId) return;

@@ -4,7 +4,20 @@ import { fetchAllInstructorCoursesForAudit } from "@/lib/instructor-courses";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewAuditPage() {
+type PageProps = {
+  searchParams: Promise<{ courseCode?: string | string[] }>;
+};
+
+export default async function NewAuditPage({ searchParams }: PageProps) {
+  const sp = await searchParams;
+  const raw = sp.courseCode;
+  const initialCourseCode =
+    typeof raw === "string"
+      ? raw.trim()
+      : Array.isArray(raw) && typeof raw[0] === "string"
+        ? raw[0].trim()
+        : "";
+
   const { courses, fetchErrors } = await fetchAllInstructorCoursesForAudit();
 
   return (
@@ -29,7 +42,10 @@ export default async function NewAuditPage() {
           </ul>
         </div>
       ) : null}
-      <AuditRecordForm courses={courses} />
+      <AuditRecordForm
+        courses={courses}
+        initialCourseCode={initialCourseCode || undefined}
+      />
     </div>
   );
 }

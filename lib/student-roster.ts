@@ -7,15 +7,17 @@ import {
   fetchSheetTable,
 } from "@/lib/google-sheet";
 
-/** Column BN (A = 0) = index 65. Exam PDF link (BLS Student tab layout). */
+/** Column BN (1-based 66) = index 65. Exam PDF link (BLS Student tab layout). */
 export const STUDENT_SHEET_COLUMN_BN_INDEX = 65;
-/** Column BP (A = 0) = index 67. Skills sheet link (BLS Student tab layout). */
+/** Column BP (1-based 68) = index 67. Skills sheet link (BLS Student tab layout). */
 export const STUDENT_SHEET_COLUMN_BP_INDEX = 67;
+/** Column CO (1-based 93) = index 92. Exam PDF on PALS Student tab (gid 504976157). */
+export const STUDENT_SHEET_COLUMN_CO_INDEX = 92;
 
 export type StudentRow = Record<string, string> & {
   _courseType: CourseType | "Other";
   _rowId: string;
-  /** Exam / eval PDF — column BN on BLS tab, or header match on other tabs */
+  /** Exam / eval PDF — BLS: column BN; PALS: column CO when set; else header match */
   _examPdfUrl: string;
   /** Skills / checklist PDF — column BP on BLS tab, or header match on other tabs */
   _skillsSheetUrl: string;
@@ -57,6 +59,7 @@ function httpCell(s: string): string {
 function extractExamAndSkillsUrls(
   headers: string[],
   cells: string[],
+  courseType?: CourseType,
 ): { exam: string; skills: string } {
   let skills = "";
   let exam = "";
@@ -108,6 +111,14 @@ function extractExamAndSkillsUrls(
     if (v) skills = v;
   }
 
+  if (
+    courseType === "PALS" &&
+    cells.length > STUDENT_SHEET_COLUMN_CO_INDEX
+  ) {
+    const co = httpCell(cells[STUDENT_SHEET_COLUMN_CO_INDEX] ?? "");
+    if (co) exam = co;
+  }
+
   return { exam, skills };
 }
 
@@ -133,7 +144,7 @@ export async function fetchStudentRowsForCourseType(
     const code = obj[courseCodeKey] || obj[pendingKey] || "";
     const type = inferCourseType(code);
     const cells = rawRowCells[i] ?? [];
-    const { exam, skills } = extractExamAndSkillsUrls(headers, cells);
+    const { exam, skills } = extractExamAndSkillsUrls(headers, cells, courseType);
     return {
       ...obj,
       _courseType: type,

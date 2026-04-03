@@ -230,11 +230,18 @@ export function ProgramCourseDetail({
       </section>
 
       <p className="text-xs text-zinc-500">
-        To submit or update a formal audit record, sign in to{" "}
+        To submit or update a formal audit for this class, sign in and open{" "}
+        <Link
+          href={`/audit/courses/new?courseCode=${encodeURIComponent(course.courseCode)}`}
+          className="text-red-400 hover:text-red-300"
+        >
+          New audit (prefilled)
+        </Link>{" "}
+        or the full{" "}
         <a href="/audit/courses" className="text-red-400 hover:text-red-300">
-          Course audits
-        </a>
-        .
+          course audits
+        </a>{" "}
+        list.
       </p>
     </div>
   );

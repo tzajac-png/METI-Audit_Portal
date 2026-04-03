@@ -130,6 +130,9 @@ export function AuditCoursesWorkspace({ courses }: Props) {
                   <th className="whitespace-nowrap px-3 py-2 font-semibold">
                     Audit status
                   </th>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold">
+                    Audit
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/80">
@@ -156,6 +159,14 @@ export function AuditCoursesWorkspace({ courses }: Props) {
                             Pending
                           </span>
                         )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2">
+                        <Link
+                          href={`/audit/courses/new?courseCode=${encodeURIComponent(row.courseCode)}`}
+                          className="text-red-400/90 underline hover:text-red-300"
+                        >
+                          Audit this class
+                        </Link>
                       </td>
                     </tr>
                   );
