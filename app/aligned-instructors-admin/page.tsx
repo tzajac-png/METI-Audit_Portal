@@ -47,7 +47,7 @@ export default async function AlignedInstructorsAdminPage() {
             href={sheetUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-emerald-400/90 underline hover:text-emerald-300"
+            className="text-red-400/90 underline hover:text-red-300"
           >
             Open in Google Sheets
           </a>
@@ -65,7 +65,7 @@ export default async function AlignedInstructorsAdminPage() {
         </div>
       ) : null}
 
-      <section className="rounded-xl border border-emerald-900/25 bg-[var(--surface)] p-6">
+      <section className="rounded-xl border border-red-900/30 bg-[var(--surface)] p-6">
         <h3 className="text-lg font-semibold text-white">Roster</h3>
         <p className="mt-1 text-sm text-zinc-500">
           All rows from the sheet tab. Empty rows are omitted.
@@ -77,7 +77,7 @@ export default async function AlignedInstructorsAdminPage() {
           <div className="mt-6 overflow-x-auto">
             <table className="min-w-full border-collapse text-left text-sm">
               <thead>
-                <tr className="border-b border-emerald-900/30 text-zinc-400">
+                <tr className="border-b border-red-900/35 text-zinc-400">
                   {headers.map((h, hi) => (
                     <th
                       key={hi}
@@ -102,7 +102,7 @@ export default async function AlignedInstructorsAdminPage() {
                               href={row[h].trim()}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-emerald-400/90 underline hover:text-emerald-300"
+                              className="text-red-400/90 underline hover:text-red-300"
                             >
                               Link
                             </a>

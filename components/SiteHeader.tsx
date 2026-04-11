@@ -43,7 +43,7 @@ export function SiteHeader() {
           <DashboardSignOutButton />
           <Link
             href="/aligned-instructors-admin"
-            className="font-medium text-emerald-400 transition hover:text-emerald-300"
+            className="font-medium text-red-400 transition hover:text-red-300"
           >
             Aligned Instructors Admin
           </Link>

@@ -5,6 +5,9 @@ import {
 } from "@/lib/auth";
 import { shouldUseSecureCookie } from "@/lib/request-cookie-secure";
 
+/** Used when `METI_BLS_ADMIN_PASSWORD` is not set. Override via env in production if needed. */
+const DEFAULT_ALIGNED_INSTRUCTORS_PASSWORD = "METIADMIN2026!";
+
 export async function POST(request: Request) {
   let body: { password?: string };
   try {
@@ -13,13 +16,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const expected = process.env.METI_BLS_ADMIN_PASSWORD?.trim();
-  if (!expected) {
-    return NextResponse.json(
-      { error: "Server is not configured (METI_BLS_ADMIN_PASSWORD)." },
-      { status: 500 },
-    );
-  }
+  const expected =
+    process.env.METI_BLS_ADMIN_PASSWORD?.trim() ||
+    DEFAULT_ALIGNED_INSTRUCTORS_PASSWORD;
 
   const submitted = typeof body.password === "string" ? body.password : "";
   if (!submitted || submitted !== expected) {
