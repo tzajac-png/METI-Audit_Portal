@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { AlignedInstructorCredentialFieldValue } from "@/components/AlignedInstructorCredentialFieldValue";
 import { AlignedInstructorsAdminToolbar } from "@/components/AlignedInstructorsAdminToolbar";
 import { parseFirstLastName } from "@/lib/aligned-instructor-row-summaries";
-import { isOmittedFromCredentialsDetailHeader } from "@/lib/aligned-instructors-credentials-detail-filter";
+import { isOmittedFromCredentialsDetailCell } from "@/lib/aligned-instructors-credentials-detail-filter";
 import { getHiddenCandidateDocumentRowKeys } from "@/lib/aligned-candidate-document-hides-store";
 import {
   alignedInstructorsCredentialsSheetEditUrl,
@@ -46,9 +46,7 @@ export default async function AlignedInstructorCredentialDetailPage({
       const v = (row[h] ?? "").trim();
       return { h, v };
     })
-    .filter(
-      (x) => x.v && !isOmittedFromCredentialsDetailHeader(x.h),
-    );
+    .filter((x) => x.v && !isOmittedFromCredentialsDetailCell(x.h, x.v));
 
   return (
     <div className="space-y-4">

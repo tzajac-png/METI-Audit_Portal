@@ -1,4 +1,4 @@
-import { isOmittedFromCredentialsDetailHeader } from "@/lib/aligned-instructors-credentials-detail-filter";
+import { isOmittedFromCredentialsDetailCell } from "@/lib/aligned-instructors-credentials-detail-filter";
 
 export type MergedCandidateField = {
   header: string;
@@ -32,8 +32,8 @@ export function mergeCandidateSheetFields(
 
   for (const { row, rowKey } of keyedRows) {
     for (const h of headers) {
-      if (isOmittedFromCredentialsDetailHeader(h)) continue;
       const v = (row[h] ?? "").trim();
+      if (isOmittedFromCredentialsDetailCell(h, v)) continue;
       if (isNoiseCellValue(v)) continue;
       let ent = map.get(h);
       if (!ent) {

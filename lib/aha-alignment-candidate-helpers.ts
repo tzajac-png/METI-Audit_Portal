@@ -98,6 +98,53 @@ export function pickSubmissionStatus(
   return "";
 }
 
+/** Status and/or document-type labels across a candidate's rows (candidates list). */
+export function summarizeCandidateSubmissionLabels(
+  rows: Record<string, string>[],
+  headers: string[],
+): string {
+  const labels: string[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const s = pickSubmissionStatus(row, headers).trim();
+    const d = pickDocumentType(row, headers).trim();
+    const label = s || d;
+    if (label && !seen.has(label.toLowerCase())) {
+      seen.add(label.toLowerCase());
+      labels.push(label);
+    }
+  }
+  if (labels.length === 0) return "—";
+  return labels.join("; ");
+}
+
+export function candidateFirstLastFromRows(
+  rows: readonly Record<string, string>[],
+  headers: string[],
+  displayNameFallback: string,
+): { firstName: string; lastName: string } {
+  if (rows.length > 0) {
+    const { firstName, lastName, fullName } = parseFirstLastName(
+      rows[0]!,
+      headers,
+    );
+    if (firstName || lastName) {
+      return { firstName, lastName };
+    }
+    const name = fullName.trim() || displayNameFallback.trim();
+    const parts = name.split(/\s+/).filter(Boolean);
+    return {
+      firstName: parts[0] ?? "",
+      lastName: parts.slice(1).join(" "),
+    };
+  }
+  const parts = displayNameFallback.trim().split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts[0] ?? "",
+    lastName: parts.slice(1).join(" "),
+  };
+}
+
 export function findRosterRowKeyForCandidateName(
   instructorName: string,
   summaries: AlignedInstructorRowSummary[],

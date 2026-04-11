@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { AlignedInstructorsAdminToolbar } from "@/components/AlignedInstructorsAdminToolbar";
 import {
+  candidateFirstLastFromRows,
   candidateProfileSlugFromNormalizedKey,
   findInstructorNameInRow,
   findRosterRowKeyForCandidateName,
   normalizeInstructorKey,
+  summarizeCandidateSubmissionLabels,
 } from "@/lib/aha-alignment-candidate-helpers";
 import { getHiddenCandidateDocumentRowKeys } from "@/lib/aligned-candidate-document-hides-store";
 import {
@@ -20,7 +22,10 @@ export const dynamic = "force-dynamic";
 type CandidateSummary = {
   normalizedKey: string;
   displayName: string;
+  firstName: string;
+  lastName: string;
   submissionCount: number;
+  submissionStatusLabel: string;
   rosterRowKey: string | null;
   profileSlug: string;
 };
@@ -58,7 +63,7 @@ export default async function AlignedInstructorsCredentialsPage() {
 
   const groupMap = new Map<
     string,
-    { displayName: string; submissionCount: number }
+    { displayName: string; rows: Record<string, string>[] }
   >();
 
   for (const { row } of visibleRows) {
@@ -67,28 +72,45 @@ export default async function AlignedInstructorsCredentialsPage() {
     if (!nk) continue;
     const prev = groupMap.get(nk);
     if (prev) {
-      prev.submissionCount += 1;
+      prev.rows.push(row);
     } else {
-      groupMap.set(nk, { displayName: name.trim() || "Unknown", submissionCount: 1 });
+      groupMap.set(nk, {
+        displayName: name.trim() || "Unknown",
+        rows: [row],
+      });
     }
   }
 
   const candidates: CandidateSummary[] = [...groupMap.entries()]
-    .map(([normalizedKey, { displayName, submissionCount }]) => ({
-      normalizedKey,
-      displayName,
-      submissionCount,
-      rosterRowKey: findRosterRowKeyForCandidateName(
+    .map(([normalizedKey, { displayName, rows }]) => {
+      const { firstName, lastName } = candidateFirstLastFromRows(
+        rows,
+        headers,
         displayName,
-        rosterSummaries,
-      ),
-      profileSlug: candidateProfileSlugFromNormalizedKey(normalizedKey),
-    }))
-    .sort((a, b) =>
-      a.displayName.localeCompare(b.displayName, undefined, {
+      );
+      return {
+        normalizedKey,
+        displayName,
+        firstName,
+        lastName,
+        submissionCount: rows.length,
+        submissionStatusLabel: summarizeCandidateSubmissionLabels(rows, headers),
+        rosterRowKey: findRosterRowKeyForCandidateName(
+          displayName,
+          rosterSummaries,
+        ),
+        profileSlug: candidateProfileSlugFromNormalizedKey(normalizedKey),
+      };
+    })
+    .sort((a, b) => {
+      const lb = a.lastName.localeCompare(b.lastName, undefined, {
         sensitivity: "base",
-      }),
-    );
+      });
+      if (lb !== 0) return lb;
+      return a.firstName.localeCompare(b.firstName, undefined, {
+        sensitivity: "base",
+      });
+    });
 
   const sheetUrl = alignedInstructorsCredentialsSheetEditUrl();
 
@@ -142,7 +164,13 @@ export default async function AlignedInstructorsCredentialsPage() {
             <thead>
               <tr className="border-b border-red-900/35 text-zinc-400">
                 <th className="whitespace-nowrap px-3 py-2 font-semibold">
-                  Instructor candidate
+                  First name
+                </th>
+                <th className="whitespace-nowrap px-3 py-2 font-semibold">
+                  Last name
+                </th>
+                <th className="min-w-[12rem] px-3 py-2 font-semibold">
+                  Submission status
                 </th>
                 <th className="whitespace-nowrap px-3 py-2 font-semibold">
                   Documents
@@ -158,7 +186,15 @@ export default async function AlignedInstructorsCredentialsPage() {
             <tbody className="divide-y divide-zinc-800/80">
               {candidates.map((c) => (
                 <tr key={c.normalizedKey} className="text-zinc-300">
-                  <td className="px-3 py-2 text-white">{c.displayName}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-white">
+                    {c.firstName || "—"}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-white">
+                    {c.lastName || "—"}
+                  </td>
+                  <td className="max-w-[20rem] px-3 py-2 text-zinc-200">
+                    {c.submissionStatusLabel}
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2">
                     {c.submissionCount}
                   </td>
