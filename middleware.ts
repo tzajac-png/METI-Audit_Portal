@@ -6,8 +6,8 @@ const AUDIT_COOKIE = "audit_session";
 const METI_BLS_ADMIN_COOKIE = "meti_bls_admin_session";
 const DASHBOARD_COOKIE = "dashboard_session";
 
-const METI_BLS_BASE = "/audit/meti-bls-instructors";
-const METI_BLS_LOGIN = "/audit/meti-bls-instructors/login";
+const ALIGNED_BASE = "/aligned-instructors-admin";
+const ALIGNED_LOGIN = "/aligned-instructors-admin/login";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -28,41 +28,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    if (pathname.startsWith(METI_BLS_LOGIN)) {
-      if (auditSecret && auditSecret.length >= 16) {
-        const auditToken = request.cookies.get(AUDIT_COOKIE)?.value;
-        const metiToken = request.cookies.get(METI_BLS_ADMIN_COOKIE)?.value;
-        const auditOk =
-          !!auditToken && (await auditTokenValid(auditToken, auditSecret));
-        const metiOk =
-          !!metiToken && (await metiBlsAdminTokenValid(metiToken, auditSecret));
-        if (auditOk || metiOk) {
-          return NextResponse.redirect(new URL(METI_BLS_BASE, request.url));
-        }
-      }
-      return NextResponse.next();
-    }
-
-    if (
-      pathname === METI_BLS_BASE ||
-      (pathname.startsWith(`${METI_BLS_BASE}/`) &&
-        !pathname.startsWith(METI_BLS_LOGIN))
-    ) {
-      if (!auditSecret || auditSecret.length < 16) {
-        return NextResponse.redirect(new URL("/audit/login", request.url));
-      }
-      const auditToken = request.cookies.get(AUDIT_COOKIE)?.value;
-      const metiToken = request.cookies.get(METI_BLS_ADMIN_COOKIE)?.value;
-      const auditOk =
-        !!auditToken && (await auditTokenValid(auditToken, auditSecret));
-      const metiOk =
-        !!metiToken && (await metiBlsAdminTokenValid(metiToken, auditSecret));
-      if (auditOk || metiOk) {
-        return NextResponse.next();
-      }
-      return NextResponse.redirect(new URL(METI_BLS_LOGIN, request.url));
-    }
-
     const token = request.cookies.get(AUDIT_COOKIE)?.value;
 
     if (!auditSecret || auditSecret.length < 16 || !token) {
@@ -81,6 +46,34 @@ export async function middleware(request: NextRequest) {
     } catch {
       return NextResponse.redirect(new URL("/audit/login", request.url));
     }
+  }
+
+  if (pathname.startsWith(ALIGNED_BASE)) {
+    const auditSecret = process.env.AUDIT_SECRET;
+
+    if (!auditSecret || auditSecret.length < 16) {
+      return NextResponse.redirect(new URL(ALIGNED_LOGIN, request.url));
+    }
+
+    if (pathname.startsWith(ALIGNED_LOGIN)) {
+      const metiToken = request.cookies.get(METI_BLS_ADMIN_COOKIE)?.value;
+      if (
+        metiToken &&
+        (await metiBlsAdminTokenValid(metiToken, auditSecret))
+      ) {
+        return NextResponse.redirect(new URL(ALIGNED_BASE, request.url));
+      }
+      return NextResponse.next();
+    }
+
+    const metiToken = request.cookies.get(METI_BLS_ADMIN_COOKIE)?.value;
+    if (
+      metiToken &&
+      (await metiBlsAdminTokenValid(metiToken, auditSecret))
+    ) {
+      return NextResponse.next();
+    }
+    return NextResponse.redirect(new URL(ALIGNED_LOGIN, request.url));
   }
 
   const dashSecret = process.env.AUDIT_SECRET;

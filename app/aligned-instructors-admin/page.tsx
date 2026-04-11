@@ -1,5 +1,4 @@
-import { AuditToolbar } from "@/components/AuditToolbar";
-import { getAuditSessionValid } from "@/lib/auth";
+import { AlignedInstructorsAdminToolbar } from "@/components/AlignedInstructorsAdminToolbar";
 import {
   fetchMetiBlsInstructorsTable,
   metiBlsInstructorsSheetEditUrl,
@@ -7,9 +6,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function MetiBlsInstructorsPage() {
-  const sessionMode = (await getAuditSessionValid()) ? "audit" : "meti_bls";
-
+export default async function AlignedInstructorsAdminPage() {
   let headers: string[] = [];
   let rows: Record<string, string>[] = [];
   let sourceUrl = "";
@@ -31,15 +28,16 @@ export default async function MetiBlsInstructorsPage() {
 
   return (
     <div className="space-y-4">
-      <AuditToolbar sessionMode={sessionMode} />
+      <AlignedInstructorsAdminToolbar />
+
       <div>
-        <h1 className="text-2xl font-semibold text-white">
-          METI BLS AHA instructors
-        </h1>
+        <h2 className="text-xl font-semibold text-white">
+          BLS AHA instructors roster
+        </h2>
         <p className="mt-1 text-sm text-zinc-400">
-          Instructors aligned under METI for BLS AHA classes. Data is read from the
-          linked Google Sheet (respects hidden rows/columns when using the Sheets
-          API).
+          Instructors aligned under METI for BLS AHA classes. Data is read from
+          the linked Google Sheet (hidden rows/columns respected when using the
+          Sheets API).
         </p>
         <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
           {fetchedAt ? (
@@ -49,7 +47,7 @@ export default async function MetiBlsInstructorsPage() {
             href={sheetUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-red-400/90 underline hover:text-red-300"
+            className="text-emerald-400/90 underline hover:text-emerald-300"
           >
             Open in Google Sheets
           </a>
@@ -67,8 +65,8 @@ export default async function MetiBlsInstructorsPage() {
         </div>
       ) : null}
 
-      <section className="rounded-xl border border-red-900/30 bg-[var(--surface)] p-6">
-        <h2 className="text-lg font-semibold text-white">Roster</h2>
+      <section className="rounded-xl border border-emerald-900/25 bg-[var(--surface)] p-6">
+        <h3 className="text-lg font-semibold text-white">Roster</h3>
         <p className="mt-1 text-sm text-zinc-500">
           All rows from the sheet tab. Empty rows are omitted.
         </p>
@@ -79,7 +77,7 @@ export default async function MetiBlsInstructorsPage() {
           <div className="mt-6 overflow-x-auto">
             <table className="min-w-full border-collapse text-left text-sm">
               <thead>
-                <tr className="border-b border-red-900/35 text-zinc-400">
+                <tr className="border-b border-emerald-900/30 text-zinc-400">
                   {headers.map((h, hi) => (
                     <th
                       key={hi}
@@ -104,7 +102,7 @@ export default async function MetiBlsInstructorsPage() {
                               href={row[h].trim()}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-red-400/90 underline hover:text-red-300"
+                              className="text-emerald-400/90 underline hover:text-emerald-300"
                             >
                               Link
                             </a>

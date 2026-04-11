@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export default function MetiBlsInstructorsLoginPage() {
+export default function AlignedInstructorsAdminLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -12,7 +12,7 @@ export default function MetiBlsInstructorsLoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/audit/meti-bls-admin/login", {
+      const res = await fetch("/api/aligned-instructors-admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
@@ -23,7 +23,7 @@ export default function MetiBlsInstructorsLoginPage() {
         setError(data.error ?? "Login failed");
         return;
       }
-      window.location.assign("/audit/meti-bls-instructors");
+      window.location.assign("/aligned-instructors-admin");
     } catch {
       setError("Network error");
     } finally {
@@ -33,17 +33,18 @@ export default function MetiBlsInstructorsLoginPage() {
 
   return (
     <div className="mx-auto max-w-md pt-10">
-      <div className="rounded-xl border border-red-900/40 bg-[var(--surface)] p-8 shadow-xl shadow-black/50">
+      <div className="rounded-xl border border-emerald-900/40 bg-[var(--surface)] p-8 shadow-xl shadow-black/50">
         <h1 className="text-xl font-semibold text-white">
-          METI BLS AHA instructors
+          Aligned Instructors Admin
         </h1>
         <p className="mt-2 text-sm text-zinc-400">
-          Enter the roster password to view instructors aligned under METI for BLS
-          AHA classes (Google Sheet).
+          Sign in to view the METI BLS AHA instructor roster. This area is
+          separate from course audit — use the password provided for aligned
+          instructors only.
         </p>
         <form onSubmit={onSubmit} className="mt-8 space-y-4">
           <label className="block">
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-red-400/90">
+            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-emerald-400/90">
               Password
             </span>
             <input
@@ -51,7 +52,7 @@ export default function MetiBlsInstructorsLoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-red-900/40 bg-zinc-950 px-3 py-2.5 text-white focus:border-red-500/60 focus:outline-none focus:ring-1 focus:ring-red-500/40"
+              className="w-full rounded-lg border border-emerald-900/40 bg-zinc-950 px-3 py-2.5 text-white focus:border-emerald-500/60 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
               required
             />
           </label>
@@ -63,7 +64,7 @@ export default function MetiBlsInstructorsLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500 disabled:opacity-50"
+            className="w-full rounded-lg bg-emerald-700 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
           >
             {loading ? "Signing in…" : "Continue"}
           </button>
