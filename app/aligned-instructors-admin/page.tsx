@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AlignedInstructorAuditWorkspace } from "@/components/AlignedInstructorAuditWorkspace";
 import { AlignedInstructorsAdminToolbar } from "@/components/AlignedInstructorsAdminToolbar";
 import { buildAlignedInstructorRowSummaries } from "@/lib/aligned-instructor-row-summaries";
@@ -32,11 +33,19 @@ export default async function AlignedInstructorsAdminPage() {
           audits: pending vs complete by compliance checklist, audit history,
           and Tyler Zajac / Ben Bonathan as auditors.
         </p>
-        {fetchedAt ? (
-          <p className="mt-2 text-xs text-zinc-500">
-            Roster refreshed {new Date(fetchedAt).toLocaleString()}
-          </p>
-        ) : null}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Link
+            href="/aligned-instructors-admin/credentials"
+            className="inline-flex rounded-lg border border-zinc-600/80 bg-zinc-900/60 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:border-red-700/50 hover:bg-zinc-900"
+          >
+            AHA alignment candidates
+          </Link>
+          {fetchedAt ? (
+            <span className="text-xs text-zinc-500">
+              Roster refreshed {new Date(fetchedAt).toLocaleString()}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       {loadError ? (

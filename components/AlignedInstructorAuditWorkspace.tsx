@@ -127,6 +127,12 @@ export function AlignedInstructorAuditWorkspace({
         >
           Create a new audit
         </Link>
+        <Link
+          href="/aligned-instructors-admin/credentials"
+          className="rounded-lg border border-zinc-600/80 bg-zinc-900/60 px-5 py-2.5 text-sm font-semibold text-zinc-100 transition hover:border-red-700/50 hover:bg-zinc-900"
+        >
+          AHA alignment candidates
+        </Link>
         <span className="text-xs text-zinc-500">
           <span className="text-sky-300">New submission</span> until you open a row
           via <span className="text-zinc-400">Audit this row</span>; change

@@ -1,32 +1,37 @@
 import Link from "next/link";
 import { AlignedInstructorsAdminToolbar } from "@/components/AlignedInstructorsAdminToolbar";
 import {
-  findCourseDateLabel,
-  parseFirstLastName,
-} from "@/lib/aligned-instructor-row-summaries";
+  candidateProfileSlugFromNormalizedKey,
+  findInstructorNameInRow,
+  findRosterRowKeyForCandidateName,
+  normalizeInstructorKey,
+} from "@/lib/aha-alignment-candidate-helpers";
+import { getHiddenCandidateDocumentRowKeys } from "@/lib/aligned-candidate-document-hides-store";
 import {
   alignedInstructorsCredentialsSheetEditUrl,
   attachCredentialsRowKeys,
   fetchAlignedInstructorsCredentialsTable,
 } from "@/lib/aligned-instructors-credentials-sheet";
+import { buildAlignedInstructorRowSummaries } from "@/lib/aligned-instructor-row-summaries";
+import { fetchMetiBlsInstructorsTable } from "@/lib/meti-bls-instructors-sheet";
 
 export const dynamic = "force-dynamic";
 
-function pickEmail(row: Record<string, string>, headers: string[]): string {
-  for (const h of headers) {
-    if (/email/i.test(h.trim())) {
-      const v = row[h]?.trim();
-      if (v) return v;
-    }
-  }
-  return "";
-}
+type CandidateSummary = {
+  normalizedKey: string;
+  displayName: string;
+  submissionCount: number;
+  rosterRowKey: string | null;
+  profileSlug: string;
+};
 
 export default async function AlignedInstructorsCredentialsPage() {
   let headers: string[] = [];
   let fetchedAt = "";
   let loadError: string | null = null;
-  let rowsWithKeys: ReturnType<typeof attachCredentialsRowKeys> = [];
+  let rowsWithKeys = attachCredentialsRowKeys([], []);
+
+  let rosterSummaries = buildAlignedInstructorRowSummaries([], []);
 
   try {
     const data = await fetchAlignedInstructorsCredentialsTable();
@@ -38,29 +43,54 @@ export default async function AlignedInstructorsCredentialsPage() {
       e instanceof Error ? e.message : "Could not load the spreadsheet.";
   }
 
+  try {
+    const roster = await fetchMetiBlsInstructorsTable();
+    rosterSummaries = buildAlignedInstructorRowSummaries(
+      roster.headers,
+      roster.rows,
+    );
+  } catch {
+    /* roster optional for links */
+  }
+
+  const hidden = await getHiddenCandidateDocumentRowKeys();
+  const visibleRows = rowsWithKeys.filter((x) => !hidden.has(x.rowKey));
+
+  const groupMap = new Map<
+    string,
+    { displayName: string; submissionCount: number }
+  >();
+
+  for (const { row } of visibleRows) {
+    const name = findInstructorNameInRow(row, headers);
+    const nk = normalizeInstructorKey(name);
+    if (!nk) continue;
+    const prev = groupMap.get(nk);
+    if (prev) {
+      prev.submissionCount += 1;
+    } else {
+      groupMap.set(nk, { displayName: name.trim() || "Unknown", submissionCount: 1 });
+    }
+  }
+
+  const candidates: CandidateSummary[] = [...groupMap.entries()]
+    .map(([normalizedKey, { displayName, submissionCount }]) => ({
+      normalizedKey,
+      displayName,
+      submissionCount,
+      rosterRowKey: findRosterRowKeyForCandidateName(
+        displayName,
+        rosterSummaries,
+      ),
+      profileSlug: candidateProfileSlugFromNormalizedKey(normalizedKey),
+    }))
+    .sort((a, b) =>
+      a.displayName.localeCompare(b.displayName, undefined, {
+        sensitivity: "base",
+      }),
+    );
+
   const sheetUrl = alignedInstructorsCredentialsSheetEditUrl();
-
-  const tableRows = rowsWithKeys.map(({ rowKey, row }) => {
-    const { firstName, lastName, fullName } = parseFirstLastName(row, headers);
-    return {
-      rowKey,
-      firstName,
-      lastName,
-      displayName: fullName || "—",
-      email: pickEmail(row, headers),
-      courseDate: findCourseDateLabel(row, headers),
-    };
-  });
-
-  tableRows.sort((a, b) => {
-    const c = a.lastName.localeCompare(b.lastName, undefined, {
-      sensitivity: "base",
-    });
-    if (c !== 0) return c;
-    return a.firstName.localeCompare(b.firstName, undefined, {
-      sensitivity: "base",
-    });
-  });
 
   return (
     <div className="space-y-4">
@@ -68,24 +98,28 @@ export default async function AlignedInstructorsCredentialsPage() {
 
       <div>
         <h2 className="text-2xl font-semibold text-white">
-          Aligned instructors credentials
+          AHA alignment — candidate documents
         </h2>
         <p className="mt-1 text-sm text-zinc-400">
-          Credential rows from the linked Google Sheet. Open a row for full
-          field detail.
+          Submissions from the{" "}
+          <span className="text-zinc-300">AHA Alignment Candidate Information</span>{" "}
+          tab: instructor name, document type, and upload links. Open a candidate
+          for full detail. Removing a row here only hides it in the portal.
         </p>
-        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
-          {fetchedAt ? (
-            <span>Sheet refreshed {new Date(fetchedAt).toLocaleString()}</span>
-          ) : null}
+        <p className="mt-3 flex flex-wrap items-center gap-2">
           <a
             href={sheetUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-red-400/90 underline hover:text-red-300"
+            className="inline-flex rounded-lg border border-red-700/50 bg-red-950/40 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-950/70"
           >
-            Open credentials spreadsheet
+            Open candidate spreadsheet tab
           </a>
+          {fetchedAt ? (
+            <span className="text-xs text-zinc-500">
+              Sheet refreshed {new Date(fetchedAt).toLocaleString()}
+            </span>
+          ) : null}
         </p>
       </div>
 
@@ -98,41 +132,54 @@ export default async function AlignedInstructorsCredentialsPage() {
             and sheet access.
           </p>
         </div>
-      ) : tableRows.length === 0 ? (
-        <p className="text-sm text-zinc-500">No rows in this tab.</p>
+      ) : candidates.length === 0 ? (
+        <p className="text-sm text-zinc-500">
+          No candidate submissions yet (or all are hidden from the portal).
+        </p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-red-900/30 bg-[var(--surface)] p-4">
           <table className="min-w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-red-900/35 text-zinc-400">
                 <th className="whitespace-nowrap px-3 py-2 font-semibold">
-                  Instructor
+                  Instructor candidate
                 </th>
                 <th className="whitespace-nowrap px-3 py-2 font-semibold">
-                  Course date
+                  Documents
                 </th>
-                <th className="min-w-[12rem] px-3 py-2 font-semibold">Email</th>
                 <th className="whitespace-nowrap px-3 py-2 font-semibold">
-                  Detail
+                  Roster audit
+                </th>
+                <th className="whitespace-nowrap px-3 py-2 font-semibold">
+                  Profile
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/80">
-              {tableRows.map((r) => (
-                <tr key={r.rowKey} className="text-zinc-300">
-                  <td className="px-3 py-2 text-white">{r.displayName}</td>
+              {candidates.map((c) => (
+                <tr key={c.normalizedKey} className="text-zinc-300">
+                  <td className="px-3 py-2 text-white">{c.displayName}</td>
                   <td className="whitespace-nowrap px-3 py-2">
-                    {r.courseDate || "—"}
+                    {c.submissionCount}
                   </td>
-                  <td className="max-w-[18rem] truncate px-3 py-2 text-zinc-400">
-                    {r.email || "—"}
+                  <td className="whitespace-nowrap px-3 py-2">
+                    {c.rosterRowKey ? (
+                      <Link
+                        href={`/aligned-instructors-admin/new?rowKey=${encodeURIComponent(c.rosterRowKey)}`}
+                        className="text-red-400/90 underline hover:text-red-300"
+                      >
+                        Audit this row
+                      </Link>
+                    ) : (
+                      <span className="text-zinc-600">No roster match</span>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2">
                     <Link
-                      href={`/aligned-instructors-admin/credentials/${encodeURIComponent(r.rowKey)}`}
+                      href={`/aligned-instructors-admin/credentials/candidate/${encodeURIComponent(c.profileSlug)}`}
                       className="text-red-400/90 underline hover:text-red-300"
                     >
-                      View
+                      View candidate profile
                     </Link>
                   </td>
                 </tr>

@@ -4,7 +4,8 @@ import { fetchSheetTableFromWorkbook } from "@/lib/google-sheet";
 export const DEFAULT_ALIGNED_CREDENTIALS_SHEET_ID =
   "1CGsM8UNbd0Zz0Cgv7_i4fg_hHU5TP6V384z4LN-ge1k";
 
-export const DEFAULT_ALIGNED_CREDENTIALS_GID = "1766425749";
+/** Tab: AHA Alignment Candidate Information (form responses — instructor, document type, upload). */
+export const DEFAULT_ALIGNED_CREDENTIALS_GID = "1631318320";
 
 export function alignedInstructorsCredentialsSheetId(): string {
   return (

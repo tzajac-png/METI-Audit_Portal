@@ -4,6 +4,7 @@ import { AlignedInstructorCredentialFieldValue } from "@/components/AlignedInstr
 import { AlignedInstructorsAdminToolbar } from "@/components/AlignedInstructorsAdminToolbar";
 import { parseFirstLastName } from "@/lib/aligned-instructor-row-summaries";
 import { isOmittedFromCredentialsDetailHeader } from "@/lib/aligned-instructors-credentials-detail-filter";
+import { getHiddenCandidateDocumentRowKeys } from "@/lib/aligned-candidate-document-hides-store";
 import {
   alignedInstructorsCredentialsSheetEditUrl,
   attachCredentialsRowKeys,
@@ -32,6 +33,9 @@ export default async function AlignedInstructorCredentialDetailPage({
   const keyed = attachCredentialsRowKeys(headers, rows);
   const found = keyed.find((x) => x.rowKey === rowKey);
   if (!found) notFound();
+
+  const hidden = await getHiddenCandidateDocumentRowKeys();
+  if (hidden.has(rowKey)) notFound();
 
   const { row } = found;
   const { fullName } = parseFirstLastName(row, headers);
