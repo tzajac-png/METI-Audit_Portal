@@ -35,6 +35,22 @@ export default async function InstructorDirectoryPage() {
 
     return (
       <div className="space-y-6">
+        <div className="flex flex-col gap-3 rounded-xl border border-red-900/40 bg-red-950/25 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-zinc-200">
+            <span className="font-semibold text-white">Instructor paperwork:</span>{" "}
+            submit credentials and documents via the Google Form. Files are linked
+            on each instructor profile by document type.
+          </p>
+          <a
+            href={INSTRUCTOR_DOCUMENT_GOOGLE_FORM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 rounded-lg border border-red-600/70 bg-red-600/90 px-5 py-2.5 text-center text-sm font-semibold text-white shadow-lg shadow-black/30 transition hover:bg-red-500"
+          >
+            Instructor document form
+          </a>
+        </div>
+
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-white">
@@ -54,19 +70,6 @@ export default async function InstructorDirectoryPage() {
             ← Dashboard
           </Link>
         </div>
-
-        <p className="rounded-lg border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-sm text-zinc-400">
-          Submit credentials and paperwork via the{" "}
-          <a
-            href={INSTRUCTOR_DOCUMENT_GOOGLE_FORM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-red-400 underline hover:text-red-300"
-          >
-            instructor document form
-          </a>
-          . Files are linked on each instructor&apos;s detail page by document type.
-        </p>
 
         <InstructorDirectoryTiles items={items} />
       </div>

@@ -1,5 +1,21 @@
 import type { InstructorUploadCategory } from "@/lib/instructor-uploads-store";
 
+/** Exact matches for Google Form dropdown labels (lowercase key). */
+const DOCUMENT_TYPE_EXACT: Record<string, InstructorUploadCategory> = {
+  "bls instructor card": "bls_instructor",
+  "bls provider card": "bls_provider_card",
+  "bls instructor": "bls_instructor",
+  "bls provider": "bls_provider_card",
+  "acls instructor card": "acls_instructor",
+  "acls provider card": "acls_provider",
+  "acls instructor": "acls_instructor",
+  "acls provider": "acls_provider",
+  "pals instructor card": "pals_instructor",
+  "pals provider card": "pals_provider",
+  "pals instructor": "pals_instructor",
+  "pals provider": "pals_provider",
+};
+
 type Rule = {
   category: InstructorUploadCategory;
   test: (normalized: string) => boolean;
@@ -87,7 +103,9 @@ export function mapDocumentTypeToCategory(
 ): InstructorUploadCategory | null {
   const raw = documentType.trim();
   if (!raw) return null;
-  const s = raw.toLowerCase();
+  const s = raw.toLowerCase().replace(/\s+/g, " ");
+  const exact = DOCUMENT_TYPE_EXACT[s];
+  if (exact) return exact;
   for (const { category, test } of RULES) {
     if (test(s)) return category;
   }

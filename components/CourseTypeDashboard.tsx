@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ImportantDatesPanel } from "@/components/ImportantDatesPanel";
 import { COURSE_TYPES, type CourseType } from "@/lib/course";
 import { INSTRUCTOR_DOCUMENT_GOOGLE_FORM_URL } from "@/lib/instructor-upload-form";
 
@@ -32,8 +31,6 @@ export function CourseTypeDashboard() {
           rosters pulled from METI spreadsheets.
         </p>
       </div>
-
-      <ImportantDatesPanel />
 
       <div className="rounded-xl border border-red-900/35 bg-[var(--surface)] p-5 shadow-lg shadow-black/20">
         <h2 className="text-lg font-semibold text-white">

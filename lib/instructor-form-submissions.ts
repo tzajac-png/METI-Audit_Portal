@@ -21,13 +21,15 @@ export type InstructorFormSubmission = {
   documentUrl: string;
 };
 
-function normalizePersonKey(s: string): string {
+function collapseWs(s: string): string {
   return s
     .trim()
-    .toLowerCase()
-    .replace(/,/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/\u00a0/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function normalizePersonKey(s: string): string {
+  return collapseWs(s).toLowerCase().replace(/,/g, " ").replace(/\s+/g, " ").trim();
 }
 
 /** Whether a form row's "Instructor" value matches this roster person. */
@@ -48,19 +50,37 @@ export function formInstructorMatchesPerson(
   return false;
 }
 
-function cellExact(row: Record<string, string>, canonical: string): string {
-  const want = canonical.trim().toLowerCase();
-  for (const [k, v] of Object.entries(row)) {
-    if (/^debug/i.test(k.trim())) continue;
-    if (k.trim().toLowerCase() === want) return (v ?? "").trim();
-  }
-  return "";
+function isDebugHeader(h: string): boolean {
+  return /^debug/i.test(h.trim());
 }
 
-function pickCell(row: Record<string, string>, headerRe: RegExp): string {
-  for (const [k, v] of Object.entries(row)) {
-    if (/^debug/i.test(k.trim())) continue;
-    if (headerRe.test(k.trim())) return (v ?? "").trim();
+function findHeaderIndex(headers: string[], re: RegExp): number {
+  for (let i = 0; i < headers.length; i++) {
+    const h = headers[i]?.trim() ?? "";
+    if (isDebugHeader(h)) continue;
+    if (re.test(h)) return i;
+  }
+  return -1;
+}
+
+function firstHeaderIndex(headers: string[], patterns: RegExp[]): number {
+  for (const re of patterns) {
+    const i = findHeaderIndex(headers, re);
+    if (i >= 0) return i;
+  }
+  return -1;
+}
+
+function cellAt(cells: string[], idx: number): string {
+  if (idx < 0 || idx >= cells.length) return "";
+  return collapseWs(cells[idx] ?? "");
+}
+
+/** First HTTPS URL anywhere in the row (Google Forms sometimes move link column). */
+function firstHttpUrlInRow(cells: string[]): string {
+  for (const c of cells) {
+    const t = collapseWs(c);
+    if (/^https?:\/\//i.test(t)) return t;
   }
   return "";
 }
@@ -78,6 +98,50 @@ function stableRowId(parts: string[]): string {
   return `form-${Math.abs(h).toString(36)}`;
 }
 
+type ColumnMap = {
+  timestamp: number;
+  instructor: number;
+  documentType: number;
+  expiration: number;
+  upload: number;
+};
+
+function resolveColumns(headers: string[]): ColumnMap {
+  const timestamp = firstHeaderIndex(headers, [
+    /^timestamp$/i,
+    /time\s*stamp/i,
+  ]);
+  const instructor = firstHeaderIndex(headers, [
+    /^instructor$/i,
+    /^instructor\s+name$/i,
+    /instructor/i,
+  ]);
+  const documentType = firstHeaderIndex(headers, [
+    /document\s*type/i,
+    /^type$/i,
+  ]);
+  const expiration = firstHeaderIndex(headers, [
+    /expiration/i,
+    /expiry|expires/i,
+  ]);
+  const upload = firstHeaderIndex(headers, [
+    /upload\s*document/i,
+    /uploaded\s*files?/i,
+    /file\s*upload/i,
+    /drive\s*link|document\s*link/i,
+    /^upload$/i,
+    /upload|attachment|file|link/i,
+  ]);
+
+  return {
+    timestamp,
+    instructor,
+    documentType,
+    expiration,
+    upload,
+  };
+}
+
 export async function fetchInstructorFormSubmissions(): Promise<{
   submissions: InstructorFormSubmission[];
   fetchedAt: string;
@@ -86,25 +150,26 @@ export async function fetchInstructorFormSubmissions(): Promise<{
   const gid =
     process.env.GOOGLE_SHEET_GID_INSTRUCTOR_UPLOAD_FORM?.trim() ??
     DEFAULT_GID_INSTRUCTOR_UPLOAD_FORM;
-  const { rows, sourceUrl } = await fetchSheetTable(gid);
+  const { headers, rawRowCells, sourceUrl } = await fetchSheetTable(gid);
+  const col = resolveColumns(headers);
   const submissions: InstructorFormSubmission[] = [];
 
-  for (const row of rows) {
+  for (const cells of rawRowCells) {
     const timestamp =
-      cellExact(row, "Timestamp") || pickCell(row, /^timestamp$/i);
+      col.timestamp >= 0 ? cellAt(cells, col.timestamp) : "";
     const instructorField =
-      cellExact(row, "Instructor") || pickCell(row, /^instructor$/i);
+      col.instructor >= 0 ? cellAt(cells, col.instructor) : "";
     const documentType =
-      cellExact(row, "Document Type") || pickCell(row, /^document type$/i);
+      col.documentType >= 0 ? cellAt(cells, col.documentType) : "";
     const expirationDate =
-      cellExact(row, "Expiration Date (if applicable)") ||
-      pickCell(row, /^expiration date/i);
+      col.expiration >= 0 ? cellAt(cells, col.expiration) : "";
+
     let documentUrl =
-      cellExact(row, "Upload Document") ||
-      pickCell(row, /^upload document$/i);
-    if (!documentUrl) {
-      documentUrl = pickCell(row, /^upload|^file upload|document link$/i);
+      col.upload >= 0 ? cellAt(cells, col.upload) : "";
+    if (!isHttpUrl(documentUrl)) {
+      documentUrl = firstHttpUrlInRow(cells);
     }
+
     if (!instructorField || !documentType || !isHttpUrl(documentUrl)) continue;
 
     submissions.push({
