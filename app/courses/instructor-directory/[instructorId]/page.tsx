@@ -12,7 +12,6 @@ import {
   fetchInstructorFormSubmissions,
   filterSubmissionsForPerson,
   groupFormSubmissionsByCategory,
-  type GroupedFormSubmissions,
 } from "@/lib/instructor-form-submissions";
 
 export const dynamic = "force-dynamic";
@@ -158,8 +157,8 @@ export default async function InstructorDirectoryDetailPage({ params }: Props) {
         <div className="mt-6">
           <InstructorDocumentUploads
             instructorId={segment}
-            formSubmissionsByCategory={groupedForm.byCategory}
-            formSubmissionsUnmapped={groupedForm.unmapped}
+            formSubmissionsByCategory={formSubmissionsByCategory}
+            formSubmissionsUnmapped={formSubmissionsUnmapped}
           />
         </div>
       </section>
