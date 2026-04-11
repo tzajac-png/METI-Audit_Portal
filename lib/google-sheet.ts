@@ -68,7 +68,12 @@ const CSV_FALLBACK_ENV = "GOOGLE_SHEETS_ALLOW_CSV_FALLBACK";
  * For local testing without a key, set `GOOGLE_SHEETS_ALLOW_CSV_FALLBACK=true`
  * (hidden data may still appear in the portal).
  */
-export async function fetchSheetTable(
+/**
+ * Load a tab from an arbitrary spreadsheet (same API key / CSV rules as
+ * {@link fetchSheetTable}).
+ */
+export async function fetchSheetTableFromWorkbook(
+  sheetId: string,
   gid: string,
   options?: { live?: boolean },
 ): Promise<{
@@ -77,7 +82,6 @@ export async function fetchSheetTable(
   rawRowCells: string[][];
   sourceUrl: string;
 }> {
-  const sheetId = process.env.GOOGLE_SHEET_ID ?? DEFAULT_SHEET_ID;
   const apiKey = process.env.GOOGLE_SHEETS_API_KEY?.trim();
   const allowCsv =
     process.env[CSV_FALLBACK_ENV]?.trim() === "true" ||
@@ -123,4 +127,17 @@ export async function fetchSheetTable(
   const text = await res.text();
   const table = parseCSV(text);
   return buildTableFromRows(table, url);
+}
+
+export async function fetchSheetTable(
+  gid: string,
+  options?: { live?: boolean },
+): Promise<{
+  headers: string[];
+  rows: Record<string, string>[];
+  rawRowCells: string[][];
+  sourceUrl: string;
+}> {
+  const sheetId = process.env.GOOGLE_SHEET_ID ?? DEFAULT_SHEET_ID;
+  return fetchSheetTableFromWorkbook(sheetId, gid, options);
 }

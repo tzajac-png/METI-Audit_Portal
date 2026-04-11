@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 
 const COOKIE = "audit_session";
+const METI_BLS_ADMIN_COOKIE = "meti_bls_admin_session";
 
 function getSecretBytes(): Uint8Array | null {
   const s = process.env.AUDIT_SECRET;
@@ -34,6 +35,33 @@ export async function verifyAuditSessionToken(token: string): Promise<boolean> {
   }
 }
 
+export async function signMetiBlsAdminSession(): Promise<string> {
+  const secret = getSecretBytes();
+  if (!secret) {
+    throw new Error(
+      "AUDIT_SECRET must be set (at least 16 characters) for session signing.",
+    );
+  }
+  return new SignJWT({ role: "meti_bls_admin" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("8h")
+    .sign(secret);
+}
+
+export async function verifyMetiBlsAdminSessionToken(
+  token: string,
+): Promise<boolean> {
+  const secret = getSecretBytes();
+  if (!secret) return false;
+  try {
+    const { payload } = await jwtVerify(token, secret);
+    return payload.role === "meti_bls_admin";
+  } catch {
+    return false;
+  }
+}
+
 const DASHBOARD_COOKIE = "dashboard_session";
 
 export async function signDashboardSession(): Promise<string> {
@@ -61,7 +89,11 @@ export async function verifyDashboardSessionToken(token: string): Promise<boolea
   }
 }
 
-export { COOKIE as AUDIT_SESSION_COOKIE, DASHBOARD_COOKIE as DASHBOARD_SESSION_COOKIE };
+export {
+  COOKIE as AUDIT_SESSION_COOKIE,
+  DASHBOARD_COOKIE as DASHBOARD_SESSION_COOKIE,
+  METI_BLS_ADMIN_COOKIE as METI_BLS_ADMIN_SESSION_COOKIE,
+};
 
 /** Valid dashboard (main portal) session cookie. */
 export async function getDashboardSessionValid(): Promise<boolean> {
@@ -77,4 +109,12 @@ export async function getAuditSessionValid(): Promise<boolean> {
   const token = jar.get(COOKIE)?.value;
   if (!token) return false;
   return verifyAuditSessionToken(token);
+}
+
+/** True when the METI BLS roster password session is valid. */
+export async function getMetiBlsAdminSessionValid(): Promise<boolean> {
+  const jar = await cookies();
+  const token = jar.get(METI_BLS_ADMIN_COOKIE)?.value;
+  if (!token) return false;
+  return verifyMetiBlsAdminSessionToken(token);
 }

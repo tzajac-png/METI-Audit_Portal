@@ -3,7 +3,11 @@ import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
 const AUDIT_COOKIE = "audit_session";
+const METI_BLS_ADMIN_COOKIE = "meti_bls_admin_session";
 const DASHBOARD_COOKIE = "dashboard_session";
+
+const METI_BLS_BASE = "/audit/meti-bls-instructors";
+const METI_BLS_LOGIN = "/audit/meti-bls-instructors/login";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -22,6 +26,41 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL("/audit/courses", request.url));
       }
       return NextResponse.next();
+    }
+
+    if (pathname.startsWith(METI_BLS_LOGIN)) {
+      if (auditSecret && auditSecret.length >= 16) {
+        const auditToken = request.cookies.get(AUDIT_COOKIE)?.value;
+        const metiToken = request.cookies.get(METI_BLS_ADMIN_COOKIE)?.value;
+        const auditOk =
+          !!auditToken && (await auditTokenValid(auditToken, auditSecret));
+        const metiOk =
+          !!metiToken && (await metiBlsAdminTokenValid(metiToken, auditSecret));
+        if (auditOk || metiOk) {
+          return NextResponse.redirect(new URL(METI_BLS_BASE, request.url));
+        }
+      }
+      return NextResponse.next();
+    }
+
+    if (
+      pathname === METI_BLS_BASE ||
+      (pathname.startsWith(`${METI_BLS_BASE}/`) &&
+        !pathname.startsWith(METI_BLS_LOGIN))
+    ) {
+      if (!auditSecret || auditSecret.length < 16) {
+        return NextResponse.redirect(new URL("/audit/login", request.url));
+      }
+      const auditToken = request.cookies.get(AUDIT_COOKIE)?.value;
+      const metiToken = request.cookies.get(METI_BLS_ADMIN_COOKIE)?.value;
+      const auditOk =
+        !!auditToken && (await auditTokenValid(auditToken, auditSecret));
+      const metiOk =
+        !!metiToken && (await metiBlsAdminTokenValid(metiToken, auditSecret));
+      if (auditOk || metiOk) {
+        return NextResponse.next();
+      }
+      return NextResponse.redirect(new URL(METI_BLS_LOGIN, request.url));
     }
 
     const token = request.cookies.get(AUDIT_COOKIE)?.value;
@@ -108,6 +147,21 @@ async function auditTokenValid(
       new TextEncoder().encode(secret),
     );
     return payload.role === "audit";
+  } catch {
+    return false;
+  }
+}
+
+async function metiBlsAdminTokenValid(
+  token: string,
+  secret: string,
+): Promise<boolean> {
+  try {
+    const { payload } = await jwtVerify(
+      token,
+      new TextEncoder().encode(secret),
+    );
+    return payload.role === "meti_bls_admin";
   } catch {
     return false;
   }
