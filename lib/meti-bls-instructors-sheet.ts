@@ -1,10 +1,15 @@
 import { fetchSheetTableFromWorkbook } from "@/lib/google-sheet";
 
-/** METI-aligned BLS AHA instructors workbook (defaults match provided sheet URL). */
+/**
+ * BLS AHA aligned instructors roster (audit list + row keys), gid 1766425749.
+ * Candidate document uploads use tab 1631318320 in the same workbook
+ * (see aligned-instructors-credentials-sheet).
+ */
 export const DEFAULT_METI_BLS_INSTRUCTORS_SHEET_ID =
-  "1o_fF1Ldc7TtwSWtI-obGN5z16c2Fes1zWr_PiN4yxFU";
+  "1CGsM8UNbd0Zz0Cgv7_i4fg_hHU5TP6V384z4LN-ge1k";
 
-export const DEFAULT_METI_BLS_INSTRUCTORS_GID = "2143386597";
+/** Aligned instructor roster / main list tab (not the candidate upload tab). */
+export const DEFAULT_METI_BLS_INSTRUCTORS_GID = "1766425749";
 
 export function metiBlsInstructorsSheetId(): string {
   return (

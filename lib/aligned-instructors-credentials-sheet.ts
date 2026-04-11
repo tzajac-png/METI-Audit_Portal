@@ -4,7 +4,11 @@ import { fetchSheetTableFromWorkbook } from "@/lib/google-sheet";
 export const DEFAULT_ALIGNED_CREDENTIALS_SHEET_ID =
   "1CGsM8UNbd0Zz0Cgv7_i4fg_hHU5TP6V384z4LN-ge1k";
 
-/** Tab: AHA Alignment Candidate Information (form responses — instructor, document type, upload). */
+/**
+ * Tab: AHA Alignment Candidate Information — Timestamp, Instructor Name, Document Type,
+ * Expiration, Upload Document (not the main aligned roster tab).
+ * https://docs.google.com/spreadsheets/d/1CGsM8UNbd0Zz0Cgv7_i4fg_hHU5TP6V384z4LN-ge1k/edit?gid=1631318320#gid=1631318320
+ */
 export const DEFAULT_ALIGNED_CREDENTIALS_GID = "1631318320";
 
 export function alignedInstructorsCredentialsSheetId(): string {
