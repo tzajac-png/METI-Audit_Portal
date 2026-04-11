@@ -2,7 +2,11 @@ import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import { get, put } from "@vercel/blob";
-import type { AuditorName, ComplianceChecklist } from "@/lib/audit-constants";
+import {
+  normalizeCompliance,
+  type AuditorName,
+  type ComplianceChecklist,
+} from "@/lib/audit-constants";
 import {
   blobReadWriteOptions,
   isInstructorBlobStorageConfigured,
@@ -34,7 +38,7 @@ function normalizeRecord(
   return {
     ...raw,
     rowSnapshot: { ...raw.rowSnapshot },
-    compliance: { ...raw.compliance },
+    compliance: normalizeCompliance(raw.compliance),
   };
 }
 

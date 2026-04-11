@@ -11,7 +11,6 @@ export const COMPLIANCE_FIELD_LABELS: Record<keyof ComplianceChecklist, string> 
   instructorCredentialsVerified: "Lead instructor credentials verified",
   courseDocumentsCompliant: "Course documents on file / compliant",
   studentRecordsComplete: "Student records complete in spreadsheet",
-  ecardProcessVerified: "eCard / completion process verified",
 };
 
 export type ComplianceChecklist = {
@@ -19,7 +18,6 @@ export type ComplianceChecklist = {
   instructorCredentialsVerified: boolean;
   courseDocumentsCompliant: boolean;
   studentRecordsComplete: boolean;
-  ecardProcessVerified: boolean;
 };
 
 export function emptyCompliance(): ComplianceChecklist {
@@ -28,8 +26,19 @@ export function emptyCompliance(): ComplianceChecklist {
     instructorCredentialsVerified: false,
     courseDocumentsCompliant: false,
     studentRecordsComplete: false,
-    ecardProcessVerified: false,
   };
+}
+
+/** Drop unknown/legacy keys (e.g. removed checklist items) when loading stored JSON. */
+export function normalizeCompliance(
+  raw: Partial<Record<keyof ComplianceChecklist, boolean>> | null | undefined,
+): ComplianceChecklist {
+  const e = emptyCompliance();
+  if (!raw || typeof raw !== "object") return e;
+  for (const k of Object.keys(e) as (keyof ComplianceChecklist)[]) {
+    if (typeof raw[k] === "boolean") e[k] = raw[k];
+  }
+  return e;
 }
 
 export function complianceCompleteRatio(c: ComplianceChecklist): {

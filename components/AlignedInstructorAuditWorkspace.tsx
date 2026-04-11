@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AlignedInstructorAuditRecord } from "@/lib/aligned-instructor-audit-store";
 import {
+  findCourseDateLabel,
   parseFirstLastName,
   type AlignedInstructorRowSummary,
 } from "@/lib/aligned-instructor-row-summaries";
@@ -162,6 +163,9 @@ export function AlignedInstructorAuditWorkspace({
                   <th className="whitespace-nowrap px-3 py-2 font-semibold">
                     Instructor Last Name
                   </th>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold">
+                    Course date
+                  </th>
                   <th className="min-w-[14rem] px-3 py-2 font-semibold">
                     Submission status
                   </th>
@@ -185,6 +189,9 @@ export function AlignedInstructorAuditWorkspace({
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-white">
                         {row.lastName || "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2">
+                        {row.courseDateLabel || "—"}
                       </td>
                       <td className="px-3 py-2 align-middle text-zinc-200">
                         {!opened ? (
@@ -257,6 +264,9 @@ export function AlignedInstructorAuditWorkspace({
                     Instructor last
                   </th>
                   <th className="whitespace-nowrap px-3 py-2 font-semibold">
+                    Course date
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold">
                     Auditor
                   </th>
                   <th className="whitespace-nowrap px-3 py-2 font-semibold">
@@ -271,6 +281,7 @@ export function AlignedInstructorAuditWorkspace({
                   const snap = r.rowSnapshot;
                   const headers = Object.keys(snap);
                   const { firstName, lastName } = parseFirstLastName(snap, headers);
+                  const courseDate = findCourseDateLabel(snap, headers);
                   return (
                     <tr key={r.id} className="align-top text-zinc-300">
                       <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">
@@ -286,6 +297,9 @@ export function AlignedInstructorAuditWorkspace({
                       </td>
                       <td className="whitespace-nowrap px-3 py-2">
                         {lastName || "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2">
+                        {courseDate || "—"}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-red-300">
                         {r.auditorName}

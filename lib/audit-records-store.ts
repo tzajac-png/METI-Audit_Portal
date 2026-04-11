@@ -3,7 +3,7 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { del, get, put } from "@vercel/blob";
 import type { AuditorName, ComplianceChecklist } from "@/lib/audit-constants";
-import { emptyCompliance } from "@/lib/audit-constants";
+import { emptyCompliance, normalizeCompliance } from "@/lib/audit-constants";
 import {
   blobReadWriteOptions,
   isInstructorBlobStorageConfigured,
@@ -49,6 +49,7 @@ type StoreFile = {
 function normalizeRecord(raw: AuditRecord): AuditRecord {
   return {
     ...raw,
+    compliance: normalizeCompliance(raw.compliance),
     ecardFile: raw.ecardFile
       ? {
           originalName: raw.ecardFile.originalName,

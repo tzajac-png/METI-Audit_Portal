@@ -4,6 +4,8 @@ export type AlignedInstructorRowSummary = {
   displayLabel: string;
   firstName: string;
   lastName: string;
+  /** From sheet: Course Date, Course Start Date, Class Date, or Timestamp */
+  courseDateLabel: string;
   /** Column header → cell value (audit snapshot source) */
   snapshot: Record<string, string>;
 };
@@ -29,6 +31,29 @@ function findCell(
         const v = row[h]?.trim();
         if (v) return v;
       }
+    }
+  }
+  return "";
+}
+
+/**
+ * Match common instructor-roster / form sheet date columns.
+ */
+export function findCourseDateLabel(
+  row: Record<string, string>,
+  headers: string[],
+): string {
+  const fromHeader = findCell(row, headers, [
+    /^course\s*date$/i,
+    /^course\s*start\s*date$/i,
+    /^class\s*date$/i,
+    /^start\s*date$/i,
+  ]);
+  if (fromHeader) return fromHeader;
+  for (const h of headers) {
+    if (/^timestamp$/i.test(h.trim())) {
+      const v = row[h]?.trim();
+      if (v) return v;
     }
   }
   return "";
@@ -120,6 +145,7 @@ export function buildAlignedInstructorRowSummaries(
       displayLabel: fullName,
       firstName,
       lastName,
+      courseDateLabel: findCourseDateLabel(row, headers),
       snapshot: Object.fromEntries(
         headers.map((h) => [h, (row[h] ?? "").trim()]),
       ),

@@ -4,12 +4,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AlignedInstructorAuditRecord } from "@/lib/aligned-instructor-audit-store";
-import type { AlignedInstructorRowSummary } from "@/lib/aligned-instructor-row-summaries";
+import {
+  findCourseDateLabel,
+  type AlignedInstructorRowSummary,
+} from "@/lib/aligned-instructor-row-summaries";
 import type { ComplianceChecklist } from "@/lib/audit-constants";
 import {
   AUDITOR_OPTIONS,
   COMPLIANCE_FIELD_LABELS,
   emptyCompliance,
+  normalizeCompliance,
 } from "@/lib/audit-constants";
 import { readApiErrorMessage } from "@/lib/read-api-error";
 import { stripAlignedBoilerplateFromSnapshot } from "@/lib/aligned-instructor-snapshot-filter";
@@ -117,7 +121,7 @@ export function AlignedInstructorAuditForm({
         setRowSnapshot(stripAlignedBoilerplateFromSnapshot({ ...r.rowSnapshot }));
         setAuditorName(r.auditorName);
         setNotes(r.notes);
-        setCompliance({ ...r.compliance });
+        setCompliance(normalizeCompliance(r.compliance));
       } catch {
         if (!cancelled) setLoadError("Could not load audit records.");
       } finally {
@@ -246,6 +250,18 @@ export function AlignedInstructorAuditForm({
     .filter(([, v]) => v.trim())
     .slice(0, SNAPSHOT_DL_MAX);
 
+  const selectedRosterRow = rosterRows.find((x) => x.rowKey === rowKey);
+  const courseDateDisplay =
+    !rowKey.trim()
+      ? ""
+      : editRecordId
+        ? findCourseDateLabel(rowSnapshot, Object.keys(rowSnapshot))
+        : selectedRosterRow?.courseDateLabel ||
+          findCourseDateLabel(
+            selectedRosterRow?.snapshot ?? {},
+            Object.keys(selectedRosterRow?.snapshot ?? {}),
+          );
+
   return (
     <section className="rounded-xl border border-red-900/30 bg-[var(--surface)] p-6">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -285,6 +301,7 @@ export function AlignedInstructorAuditForm({
               {rosterRows.map((r) => (
                 <option key={r.rowKey} value={r.rowKey}>
                   {r.displayLabel}
+                  {r.courseDateLabel ? ` — ${r.courseDateLabel}` : ""}
                 </option>
               ))}
             </select>
@@ -298,6 +315,15 @@ export function AlignedInstructorAuditForm({
             </p>
           </div>
         )}
+
+        {rowKey ? (
+          <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2">
+            <p className="text-xs font-medium text-zinc-500">Course date</p>
+            <p className="mt-0.5 text-sm text-white">
+              {courseDateDisplay || "—"}
+            </p>
+          </div>
+        ) : null}
 
         {rowKey ? (
           <label className="block">

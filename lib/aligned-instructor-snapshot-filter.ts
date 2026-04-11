@@ -17,9 +17,16 @@ function isAlignedBoilerplateField(key: string, value: string): boolean {
   const t = value.trim();
   if (!t) return false;
   if (t.includes("By submitting this course for processing")) return true;
+  if (t.includes("under the Michigan Emergency Training Institute")) return true;
   if (t.includes("I certify that the information submitted is accurate")) return true;
+  if (t.includes("I acknowledge and agree that I am responsible")) return true;
   if (t.includes("I agree to retain all course records for a minimum of three")) return true;
+  if (t.includes("Failure to maintain or provide required documentation")) return true;
   if (t.includes("Student rosters and sign-in sheets")) return true;
+  if (t.includes("Skills check-off sheets") || t.includes("Skills checkoff sheets"))
+    return true;
+  if (t.includes("Course agendas and lesson plans")) return true;
+  if (t.includes("Exams and assessment records")) return true;
   if (
     t.length > 600 &&
     /Michigan Emergency Training Institute \(METI\)/i.test(t) &&
@@ -28,7 +35,12 @@ function isAlignedBoilerplateField(key: string, value: string): boolean {
     return true;
   }
   const ktrim = key.trim();
-  if (/certif|acknowledg|agreement|legal|disclaimer/i.test(ktrim) && t.length > 400) {
+  if (
+    /certif|acknowledg|agreement|legal|disclaimer|attestation|processing under/i.test(
+      ktrim,
+    ) &&
+    t.length > 400
+  ) {
     return true;
   }
   return false;

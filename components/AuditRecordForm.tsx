@@ -10,6 +10,7 @@ import {
   AUDITOR_OPTIONS,
   COMPLIANCE_FIELD_LABELS,
   emptyCompliance,
+  normalizeCompliance,
 } from "@/lib/audit-constants";
 import { readApiErrorMessage } from "@/lib/read-api-error";
 
@@ -100,7 +101,7 @@ export function AuditRecordForm({
         setLeadInstructor(r.leadInstructor === "—" ? "" : r.leadInstructor);
         setAuditorName(r.auditorName);
         setNotes(r.notes);
-        setCompliance({ ...r.compliance });
+        setCompliance(normalizeCompliance(r.compliance));
       } catch {
         if (!cancelled) setLoadError("Could not load audit records.");
       } finally {
