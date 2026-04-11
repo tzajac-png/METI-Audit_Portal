@@ -56,21 +56,25 @@ export async function middleware(request: NextRequest) {
     }
 
     if (pathname.startsWith(ALIGNED_LOGIN)) {
+      const auditToken = request.cookies.get(AUDIT_COOKIE)?.value;
       const metiToken = request.cookies.get(METI_BLS_ADMIN_COOKIE)?.value;
-      if (
-        metiToken &&
-        (await metiBlsAdminTokenValid(metiToken, auditSecret))
-      ) {
+      const auditOk =
+        !!auditToken && (await auditTokenValid(auditToken, auditSecret));
+      const metiOk =
+        !!metiToken && (await metiBlsAdminTokenValid(metiToken, auditSecret));
+      if (auditOk || metiOk) {
         return NextResponse.redirect(new URL(ALIGNED_BASE, request.url));
       }
       return NextResponse.next();
     }
 
+    const auditToken = request.cookies.get(AUDIT_COOKIE)?.value;
     const metiToken = request.cookies.get(METI_BLS_ADMIN_COOKIE)?.value;
-    if (
-      metiToken &&
-      (await metiBlsAdminTokenValid(metiToken, auditSecret))
-    ) {
+    const auditOk =
+      !!auditToken && (await auditTokenValid(auditToken, auditSecret));
+    const metiOk =
+      !!metiToken && (await metiBlsAdminTokenValid(metiToken, auditSecret));
+    if (auditOk || metiOk) {
       return NextResponse.next();
     }
     return NextResponse.redirect(new URL(ALIGNED_LOGIN, request.url));

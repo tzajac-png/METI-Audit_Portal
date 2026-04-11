@@ -38,9 +38,11 @@ export default function AlignedInstructorsAdminLoginPage() {
           Aligned Instructors Admin
         </h1>
         <p className="mt-2 text-sm text-zinc-400">
-          Sign in to view the METI BLS AHA instructor roster. This area is
-          separate from course audit — use the password provided for aligned
-          instructors only.
+          Sign in with the aligned-instructors password to manage roster audits.
+          If you already use <span className="text-zinc-300">Admin Audit</span>,
+          you can open{" "}
+          <span className="text-zinc-300">Aligned Instructors Admin</span>{" "}
+          directly without signing in here again.
         </p>
         <form onSubmit={onSubmit} className="mt-8 space-y-4">
           <label className="block">

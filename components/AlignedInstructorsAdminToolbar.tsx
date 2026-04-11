@@ -24,7 +24,8 @@ export function AlignedInstructorsAdminToolbar() {
           Aligned Instructors Admin
         </h1>
         <p className="mt-0.5 text-xs text-zinc-500">
-          METI BLS AHA instructor roster — separate sign-in from course audit
+          METI BLS AHA roster audits — password here or course audit sign-in.
+          Auditors: Tyler Zajac or Ben Bonathan.
         </p>
       </div>
       <button

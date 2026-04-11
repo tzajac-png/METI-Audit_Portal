@@ -118,3 +118,10 @@ export async function getMetiBlsAdminSessionValid(): Promise<boolean> {
   if (!token) return false;
   return verifyMetiBlsAdminSessionToken(token);
 }
+
+/** Aligned instructors admin: METI roster password or course audit session. */
+export async function getAlignedInstructorsOrAuditSessionValid(): Promise<boolean> {
+  return (
+    (await getMetiBlsAdminSessionValid()) || (await getAuditSessionValid())
+  );
+}
