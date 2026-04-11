@@ -10,7 +10,6 @@ import {
 } from "@/lib/aha-alignment-candidate-helpers";
 import { getHiddenCandidateDocumentRowKeys } from "@/lib/aligned-candidate-document-hides-store";
 import {
-  alignedInstructorsCredentialsSheetEditUrl,
   attachCredentialsRowKeys,
   fetchAlignedInstructorsCredentialsTable,
 } from "@/lib/aligned-instructors-credentials-sheet";
@@ -112,8 +111,6 @@ export default async function AlignedInstructorsCredentialsPage() {
       });
     });
 
-  const sheetUrl = alignedInstructorsCredentialsSheetEditUrl();
-
   return (
     <div className="space-y-4">
       <AlignedInstructorsAdminToolbar />
@@ -123,29 +120,14 @@ export default async function AlignedInstructorsCredentialsPage() {
           AHA alignment — candidate documents
         </h2>
         <p className="mt-1 text-sm text-zinc-400">
-          Rows from the instructor candidate tab in the linked workbook (same source as
-          the aligned roster unless you override{" "}
-          <span className="font-mono text-zinc-500">
-            GOOGLE_SHEET_GID_ALIGNED_INSTRUCTOR_CREDENTIALS
-          </span>
-          ). Open a candidate for full detail. Removing a row here only hides it in the
-          portal.
+          Candidate submissions from the configured source. Open a candidate for full
+          detail. Removing a row here only hides it in the portal.
         </p>
-        <p className="mt-3 flex flex-wrap items-center gap-2">
-          <a
-            href={sheetUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex rounded-lg border border-red-700/50 bg-red-950/40 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-950/70"
-          >
-            Open candidate spreadsheet tab
-          </a>
-          {fetchedAt ? (
-            <span className="text-xs text-zinc-500">
-              Sheet refreshed {new Date(fetchedAt).toLocaleString()}
-            </span>
-          ) : null}
-        </p>
+        {fetchedAt ? (
+          <p className="mt-3 text-xs text-zinc-500">
+            Data refreshed {new Date(fetchedAt).toLocaleString()}
+          </p>
+        ) : null}
       </div>
 
       {loadError ? (

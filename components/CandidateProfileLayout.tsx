@@ -16,35 +16,15 @@ type Props = {
   hero: NameHero;
   sections: Section[];
   submissions: CandidateSubmission[];
-  /** Opens the credentials tab; edits are made in the sheet, not in the portal. */
-  sheetEditUrl?: string;
 };
 
 export function CandidateProfileLayout({
   hero,
   sections,
   submissions,
-  sheetEditUrl,
 }: Props) {
   return (
     <div className="mx-auto max-w-3xl space-y-12">
-      {sheetEditUrl ? (
-        <div className="flex flex-col gap-2 rounded-xl border border-zinc-800/80 bg-zinc-950/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-zinc-400">
-            This page mirrors the spreadsheet. To change answers or uploads, edit
-            the source row in Google Sheets.
-          </p>
-          <a
-            href={sheetEditUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 rounded-lg border border-red-800/60 bg-red-950/30 px-4 py-2 text-center text-sm font-semibold text-red-200/95 transition hover:border-red-700 hover:bg-red-950/50"
-          >
-            Edit in spreadsheet
-          </a>
-        </div>
-      ) : null}
-
       <header className="border-b border-zinc-800/90 pb-8">
         <p className="text-3xl font-normal tracking-tight text-white sm:text-[2.125rem] sm:leading-tight">
           {hero.primary}
@@ -89,8 +69,8 @@ export function CandidateProfileLayout({
             Course Submission History
           </h2>
           <p className="mt-2 text-sm text-zinc-500">
-            One row per spreadsheet entry. Remove hides a row in this portal
-            only.
+            One row per submission in the source data. Remove hides a row in this
+            portal only.
           </p>
           <div className="mt-5">
             <CandidateSubmissionHistoryTable submissions={submissions} />

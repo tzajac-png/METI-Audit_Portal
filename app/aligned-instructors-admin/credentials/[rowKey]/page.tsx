@@ -6,7 +6,6 @@ import { parseFirstLastName } from "@/lib/aligned-instructor-row-summaries";
 import { isOmittedFromCredentialsDetailCell } from "@/lib/aligned-instructors-credentials-detail-filter";
 import { getHiddenCandidateDocumentRowKeys } from "@/lib/aligned-candidate-document-hides-store";
 import {
-  alignedInstructorsCredentialsSheetEditUrl,
   attachCredentialsRowKeys,
   fetchAlignedInstructorsCredentialsTable,
 } from "@/lib/aligned-instructors-credentials-sheet";
@@ -39,8 +38,6 @@ export default async function AlignedInstructorCredentialDetailPage({
 
   const { row } = found;
   const { fullName } = parseFirstLastName(row, headers);
-  const sheetUrl = alignedInstructorsCredentialsSheetEditUrl();
-
   const entries = headers
     .map((h) => {
       const v = (row[h] ?? "").trim();
@@ -59,15 +56,7 @@ export default async function AlignedInstructorCredentialDetailPage({
           </h2>
           <p className="mt-1 font-mono text-xs text-zinc-500">{rowKey}</p>
           <p className="mt-2 text-xs text-zinc-500">
-            Sheet refreshed {new Date(data.fetchedAt).toLocaleString()} ·{" "}
-            <a
-              href={sheetUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-red-400/90 underline hover:text-red-300"
-            >
-              Open credentials spreadsheet
-            </a>
+            Data refreshed {new Date(data.fetchedAt).toLocaleString()}
           </p>
         </div>
         <Link

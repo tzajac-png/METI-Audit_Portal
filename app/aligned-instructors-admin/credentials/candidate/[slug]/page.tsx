@@ -16,7 +16,6 @@ import {
 } from "@/lib/aha-candidate-profile-layout";
 import { getHiddenCandidateDocumentRowKeys } from "@/lib/aligned-candidate-document-hides-store";
 import {
-  alignedInstructorsCredentialsSheetEditUrl,
   attachCredentialsRowKeys,
   fetchAlignedInstructorsCredentialsTable,
 } from "@/lib/aligned-instructors-credentials-sheet";
@@ -93,8 +92,6 @@ export default async function AhaAlignmentCandidateProfilePage({ params }: Props
     rosterSummaries,
   );
 
-  const sheetUrl = alignedInstructorsCredentialsSheetEditUrl();
-
   return (
     <div className="space-y-8">
       <AlignedInstructorsAdminToolbar />
@@ -104,16 +101,8 @@ export default async function AhaAlignmentCandidateProfilePage({ params }: Props
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             AHA alignment candidate
           </p>
-          <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
-            <span>Sheet refreshed {new Date(data.fetchedAt).toLocaleString()}</span>
-            <a
-              href={sheetUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-red-400/90 underline hover:text-red-300"
-            >
-              Open spreadsheet tab
-            </a>
+          <p className="mt-2 text-xs text-zinc-500">
+            Data refreshed {new Date(data.fetchedAt).toLocaleString()}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {rosterRowKey ? (
@@ -149,7 +138,6 @@ export default async function AhaAlignmentCandidateProfilePage({ params }: Props
             hero={hero}
             sections={sections}
             submissions={submissions}
-            sheetEditUrl={sheetUrl}
           />
         )}
       </div>

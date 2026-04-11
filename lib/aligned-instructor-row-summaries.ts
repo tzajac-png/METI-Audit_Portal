@@ -36,6 +36,45 @@ function findCell(
   return "";
 }
 
+/** Reject checkbox / yes-no columns mistaken for name fields (e.g. "FALSE", "TRUE"). */
+export function isPlausiblePersonNameCellValue(v: string): boolean {
+  const t = v.trim();
+  if (!t) return false;
+  if (/^(true|false|yes|no|y|n)$/i.test(t)) return false;
+  if (/^\d+$/.test(t)) return false;
+  if (/^[\d]{1,2}\/[\d]{1,2}\/[\d]{2,4}$/.test(t)) return false;
+  if (/^[0-9]{4}-[0-9]{2}-[0-9]{2}/.test(t)) return false;
+  if (/^https?:\/\//i.test(t)) return false;
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) return false;
+  return true;
+}
+
+/**
+ * Prefer specific headers (e.g. Candidate First Name) before generic "First name"
+ * columns that may appear earlier in the sheet with boolean values.
+ */
+function findCellByPatternPriority(
+  row: Record<string, string>,
+  headers: string[],
+  patterns: RegExp[],
+  allowValue: (v: string) => boolean = isPlausiblePersonNameCellValue,
+): string {
+  for (const re of patterns) {
+    for (const h of headers) {
+      if (!re.test(h.trim())) continue;
+      const v = (row[h] ?? "").trim();
+      if (v && allowValue(v)) return v;
+    }
+  }
+  return "";
+}
+
+function isNoiseNameHeader(header: string): boolean {
+  return /boss|supervisor|your\s*boss|business\s*name|company\s*name|employer|training\s*center|facility|organization/i.test(
+    header.trim(),
+  );
+}
+
 /**
  * Match common instructor-roster / form sheet date columns.
  */
@@ -66,16 +105,16 @@ export function parseFirstLastName(
   row: Record<string, string>,
   headers: string[],
 ): { firstName: string; lastName: string; fullName: string } {
-  const firstCol = findCell(row, headers, [
+  const firstCol = findCellByPatternPriority(row, headers, [
+    /^candidate\s*first\s*name$/i,
     /^instructor\s*first\s*name$/i,
     /^first\s*name$/i,
-    /^first$/i,
     /^given\s*name$/i,
   ]);
-  const lastCol = findCell(row, headers, [
+  const lastCol = findCellByPatternPriority(row, headers, [
+    /^candidate\s*last\s*name$/i,
     /^instructor\s*last\s*name$/i,
     /^last\s*name$/i,
-    /^last$/i,
     /^surname$/i,
     /^family\s*name$/i,
   ]);
@@ -85,15 +124,18 @@ export function parseFirstLastName(
     return {
       firstName: firstCol,
       lastName: lastCol,
-      fullName: fullName || pickFullNameFallback(row, headers),
+      fullName:
+        fullName ||
+        pickFullNameFallback(row, headers) ||
+        "(Row)",
     };
   }
 
-  const combined = findCell(row, headers, [
+  const combined = findCellByPatternPriority(row, headers, [
+    /^candidate\s*name$/i,
     /^full\s*name$/i,
-    /^name$/i,
     /^instructor\s*name$/i,
-    /instructor/i,
+    /^name$/i,
   ]);
   if (combined) {
     const parts = combined.split(/\s+/).filter(Boolean);
@@ -121,14 +163,32 @@ function pickFullNameFallback(
   headers: string[],
 ): string {
   for (const h of headers) {
-    if (/name/i.test(h.trim())) {
+    const ht = h.trim();
+    if (isNoiseNameHeader(ht)) continue;
+    if (/^candidate\s*name$/i.test(ht) || /^full\s*name$/i.test(ht)) {
       const v = row[h]?.trim();
-      if (v) return v;
+      if (v && isPlausiblePersonNameCellValue(v)) return v;
     }
   }
   for (const h of headers) {
-    const v = row[h]?.trim();
-    if (v) return v;
+    const ht = h.trim();
+    if (isNoiseNameHeader(ht)) continue;
+    if (/name/i.test(ht)) {
+      const v = row[h]?.trim();
+      if (v && isPlausiblePersonNameCellValue(v)) return v;
+    }
+  }
+  for (const h of headers) {
+    const ht = h.trim();
+    if (isNoiseNameHeader(ht)) continue;
+    if (
+      /candidate|instructor|applicant|respondent|your\s*name|student\s*name/i.test(
+        ht,
+      )
+    ) {
+      const v = row[h]?.trim();
+      if (v && isPlausiblePersonNameCellValue(v)) return v;
+    }
   }
   return "(Row)";
 }

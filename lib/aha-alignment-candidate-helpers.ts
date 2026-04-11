@@ -1,5 +1,8 @@
 import type { AlignedInstructorRowSummary } from "@/lib/aligned-instructor-row-summaries";
-import { parseFirstLastName } from "@/lib/aligned-instructor-row-summaries";
+import {
+  isPlausiblePersonNameCellValue,
+  parseFirstLastName,
+} from "@/lib/aligned-instructor-row-summaries";
 
 /** Stable key for grouping and URLs (lowercase, collapsed whitespace). */
 export function normalizeInstructorKey(name: string): string {
@@ -25,10 +28,13 @@ export function findInstructorNameInRow(
 ): string {
   for (const h of headers) {
     if (/^instructor\s*name$/i.test(h.trim())) {
-      return (row[h] ?? "").trim();
+      const v = (row[h] ?? "").trim();
+      if (v && isPlausiblePersonNameCellValue(v)) return v;
     }
   }
-  return parseFirstLastName(row, headers).fullName;
+  const { fullName } = parseFirstLastName(row, headers);
+  if (fullName && fullName !== "(Row)") return fullName;
+  return "";
 }
 
 export function pickDocumentType(
@@ -89,7 +95,10 @@ export function pickSubmissionStatus(
     if (
       /^status$/i.test(ht) ||
       /submission.*status/i.test(ht) ||
-      /cards issues|documents audited|audit status/i.test(ht)
+      /cards?\s*issues?|documents?\s*audited|audit\s*status/i.test(ht) ||
+      /processing\s*status|workflow|review\s*status|document\s*status/i.test(ht) ||
+      (/status/i.test(ht) &&
+        /card|document|submission|course|instructor|alignment/i.test(ht))
     ) {
       const v = (row[h] ?? "").trim();
       if (v) return v;

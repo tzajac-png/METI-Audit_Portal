@@ -1,4 +1,5 @@
 import { isOmittedFromCredentialsDetailCell } from "@/lib/aligned-instructors-credentials-detail-filter";
+import { isPlausiblePersonNameCellValue } from "@/lib/aligned-instructor-row-summaries";
 
 export type MergedCandidateField = {
   header: string;
@@ -59,9 +60,15 @@ function mergedValueForHeaderPattern(
   merged: MergedCandidateField[],
   re: RegExp,
 ): { header: string; value: string } | null {
+  const nameLike =
+    /candidate.*name|first\s*name|last\s*name|instructor\s*name|full\s*name|^name$/i;
   for (const m of merged) {
     if (re.test(m.header.trim()) && m.values[0]) {
-      return { header: m.header, value: m.values[0]! };
+      const v = m.values[0]!;
+      if (nameLike.test(m.header.trim()) && !isPlausiblePersonNameCellValue(v)) {
+        continue;
+      }
+      return { header: m.header, value: v };
     }
   }
   return null;
