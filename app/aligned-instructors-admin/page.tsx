@@ -1,10 +1,7 @@
 import { AlignedInstructorAuditWorkspace } from "@/components/AlignedInstructorAuditWorkspace";
 import { AlignedInstructorsAdminToolbar } from "@/components/AlignedInstructorsAdminToolbar";
 import { buildAlignedInstructorRowSummaries } from "@/lib/aligned-instructor-row-summaries";
-import {
-  fetchMetiBlsInstructorsTable,
-  metiBlsInstructorsSheetEditUrl,
-} from "@/lib/meti-bls-instructors-sheet";
+import { fetchMetiBlsInstructorsTable } from "@/lib/meti-bls-instructors-sheet";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +19,6 @@ export default async function AlignedInstructorsAdminPage() {
       e instanceof Error ? e.message : "Could not load the spreadsheet.";
   }
 
-  const sheetUrl = metiBlsInstructorsSheetEditUrl();
-
   return (
     <div className="space-y-4">
       <AlignedInstructorsAdminToolbar />
@@ -37,19 +32,11 @@ export default async function AlignedInstructorsAdminPage() {
           audits: pending vs complete by compliance checklist, audit history,
           and Tyler Zajac / Ben Bonathan as auditors.
         </p>
-        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
-          {fetchedAt ? (
-            <span>Roster refreshed {new Date(fetchedAt).toLocaleString()}</span>
-          ) : null}
-          <a
-            href={sheetUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-red-400/90 underline hover:text-red-300"
-          >
-            Open in Google Sheets
-          </a>
-        </p>
+        {fetchedAt ? (
+          <p className="mt-2 text-xs text-zinc-500">
+            Roster refreshed {new Date(fetchedAt).toLocaleString()}
+          </p>
+        ) : null}
       </div>
 
       {loadError ? (
