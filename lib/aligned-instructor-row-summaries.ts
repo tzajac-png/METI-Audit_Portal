@@ -42,11 +42,13 @@ export function parseFirstLastName(
   headers: string[],
 ): { firstName: string; lastName: string; fullName: string } {
   const firstCol = findCell(row, headers, [
+    /^instructor\s*first\s*name$/i,
     /^first\s*name$/i,
     /^first$/i,
     /^given\s*name$/i,
   ]);
   const lastCol = findCell(row, headers, [
+    /^instructor\s*last\s*name$/i,
     /^last\s*name$/i,
     /^last$/i,
     /^surname$/i,

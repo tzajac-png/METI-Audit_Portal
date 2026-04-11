@@ -13,6 +13,21 @@ import {
 } from "@/lib/audit-constants";
 import { readApiErrorMessage } from "@/lib/read-api-error";
 import { stripAlignedBoilerplateFromSnapshot } from "@/lib/aligned-instructor-snapshot-filter";
+import {
+  ALIGNED_PORTAL_SUBMISSION_LABELS,
+  type AlignedPortalSubmissionStatus,
+} from "@/lib/aligned-instructor-submission-types";
+
+const STATUS_OPTIONS: AlignedPortalSubmissionStatus[] = [
+  "reviewed",
+  "payment_collected_submitted_cards",
+  "holding_class_payment",
+  "cards_issued",
+];
+
+type ApiSubmissions = {
+  entries: { rowKey: string; status: AlignedPortalSubmissionStatus }[];
+};
 
 type ApiGet = {
   records: AlignedInstructorAuditRecord[];
@@ -52,6 +67,8 @@ export function AlignedInstructorAuditForm({
   const appliedInitialRow = useRef(false);
   const [labels, setLabels] =
     useState<typeof COMPLIANCE_FIELD_LABELS>(COMPLIANCE_FIELD_LABELS);
+  const [submissionStatus, setSubmissionStatus] =
+    useState<AlignedPortalSubmissionStatus>("reviewed");
 
   const applyRowSelection = useCallback(
     (key: string) => {
@@ -138,18 +155,32 @@ export function AlignedInstructorAuditForm({
     })();
   }, [editRecordId]);
 
-  /** Marks row as opened (New submission → status workflow) when reviewing in the form. */
+  /** Open row (new submission → tracked) and load current submission status. */
   useEffect(() => {
-    if (editRecordId) return;
     const k = rowKey.trim();
     if (!k) return;
-    void fetch("/api/aligned-instructor-submission", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rowKey: k, action: "open" }),
-      credentials: "include",
-    }).catch(() => {});
-  }, [rowKey, editRecordId]);
+    let cancelled = false;
+    void (async () => {
+      await fetch("/api/aligned-instructor-submission", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rowKey: k, action: "open" }),
+        credentials: "include",
+      }).catch(() => {});
+      const res = await fetch("/api/aligned-instructor-submission", {
+        credentials: "include",
+      });
+      if (!res.ok || cancelled) return;
+      const { entries } = (await res.json()) as ApiSubmissions;
+      const e = entries.find((x) => x.rowKey === k);
+      if (cancelled) return;
+      if (e) setSubmissionStatus(e.status);
+      else setSubmissionStatus("reviewed");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [rowKey]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -226,7 +257,8 @@ export function AlignedInstructorAuditForm({
           </h2>
           <p className="mt-1 text-sm text-zinc-500">
             Same compliance checklist as course audit. Auditors: Tyler Zajac or
-            Ben Bonathan only. Row data is snapshotted when you save.
+            Ben Bonathan only. Set submission status here (read-only on the main
+            list). Row data is snapshotted when you save.
           </p>
         </div>
         <Link
@@ -266,6 +298,38 @@ export function AlignedInstructorAuditForm({
             </p>
           </div>
         )}
+
+        {rowKey ? (
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-red-400/90">
+              Submission status
+            </span>
+            <select
+              value={submissionStatus}
+              onChange={(e) => {
+                const v = e.target.value as AlignedPortalSubmissionStatus;
+                setSubmissionStatus(v);
+                void fetch("/api/aligned-instructor-submission", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    rowKey: rowKey.trim(),
+                    action: "set_status",
+                    status: v,
+                  }),
+                  credentials: "include",
+                }).catch(() => {});
+              }}
+              className="w-full max-w-lg rounded-lg border border-red-900/40 bg-zinc-950 px-3 py-2 text-sm text-white focus:border-red-500/60 focus:outline-none"
+            >
+              {STATUS_OPTIONS.map((v) => (
+                <option key={v} value={v}>
+                  {ALIGNED_PORTAL_SUBMISSION_LABELS[v]}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
 
         {snapshotEntries.length > 0 ? (
           <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4">

@@ -9,7 +9,6 @@ import {
 } from "@/lib/aligned-instructor-row-summaries";
 import {
   ALIGNED_PORTAL_SUBMISSION_LABELS,
-  type AlignedPortalSubmissionStatus,
   type AlignedSubmissionEntry,
 } from "@/lib/aligned-instructor-submission-types";
 import {
@@ -55,13 +54,6 @@ function auditStatusLabel(
   if (!latest) return "Pending";
   return isComplete(latest) ? "Complete" : "Pending";
 }
-
-const STATUS_OPTIONS: AlignedPortalSubmissionStatus[] = [
-  "reviewed",
-  "payment_collected_submitted_cards",
-  "holding_class_payment",
-  "cards_issued",
-];
 
 export function AlignedInstructorAuditWorkspace({
   rosterRows,
@@ -125,29 +117,6 @@ export function AlignedInstructorAuditWorkspace({
     if (res.ok) void refresh();
   }
 
-  async function openRow(rowKey: string) {
-    const res = await fetch("/api/aligned-instructor-submission", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rowKey, action: "open" }),
-      credentials: "include",
-    });
-    if (res.ok) void refresh();
-  }
-
-  async function changeSubmissionStatus(
-    rowKey: string,
-    status: AlignedPortalSubmissionStatus,
-  ) {
-    const res = await fetch("/api/aligned-instructor-submission", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rowKey, action: "set_status", status }),
-      credentials: "include",
-    });
-    if (res.ok) void refresh();
-  }
-
   return (
     <div className="space-y-10">
       <div className="flex flex-wrap items-center gap-3">
@@ -158,8 +127,9 @@ export function AlignedInstructorAuditWorkspace({
           Create a new audit
         </Link>
         <span className="text-xs text-zinc-500">
-          Rows show <span className="text-sky-300">New submission</span> until you
-          open them; then set processing status from the list.
+          <span className="text-sky-300">New submission</span> until you open a row
+          via <span className="text-zinc-400">Audit this row</span>; change
+          submission status on the audit page.
         </span>
       </div>
 
@@ -168,9 +138,9 @@ export function AlignedInstructorAuditWorkspace({
           All roster rows — submission & audit
         </h2>
         <p className="mt-1 text-sm text-zinc-500">
-          <span className="text-sky-300/90">New submission</span> until the row is
-          opened (Open row or Audit this row). Then choose status: Reviewed, payment
-          / cards, etc.{" "}
+          <span className="text-sky-300/90">New submission</span> until you use{" "}
+          <span className="text-zinc-400">Audit this row</span>. Submission status
+          is read-only here; edit it on the audit form.{" "}
           <span className="text-emerald-400/90">Audit complete</span> when the latest
           audit has every compliance item checked.
         </p>
@@ -187,10 +157,10 @@ export function AlignedInstructorAuditWorkspace({
               <thead>
                 <tr className="border-b border-red-900/35 text-zinc-400">
                   <th className="whitespace-nowrap px-3 py-2 font-semibold">
-                    First name
+                    Instructor First Name
                   </th>
                   <th className="whitespace-nowrap px-3 py-2 font-semibold">
-                    Last name
+                    Instructor Last Name
                   </th>
                   <th className="min-w-[14rem] px-3 py-2 font-semibold">
                     Submission status
@@ -216,29 +186,15 @@ export function AlignedInstructorAuditWorkspace({
                       <td className="whitespace-nowrap px-3 py-2 text-white">
                         {row.lastName || "—"}
                       </td>
-                      <td className="px-3 py-2 align-middle">
+                      <td className="px-3 py-2 align-middle text-zinc-200">
                         {!opened ? (
                           <span className="inline-flex rounded bg-sky-950/60 px-2 py-0.5 text-xs font-medium text-sky-200">
                             New submission
                           </span>
                         ) : (
-                          <select
-                            value={sub.status}
-                            onChange={(e) =>
-                              void changeSubmissionStatus(
-                                row.rowKey,
-                                e.target.value as AlignedPortalSubmissionStatus,
-                              )
-                            }
-                            className="max-w-full rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200"
-                            aria-label={`Submission status for ${row.displayLabel}`}
-                          >
-                            {STATUS_OPTIONS.map((v) => (
-                              <option key={v} value={v}>
-                                {ALIGNED_PORTAL_SUBMISSION_LABELS[v]}
-                              </option>
-                            ))}
-                          </select>
+                          <span className="text-sm">
+                            {ALIGNED_PORTAL_SUBMISSION_LABELS[sub.status]}
+                          </span>
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2">
@@ -253,23 +209,12 @@ export function AlignedInstructorAuditWorkspace({
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2">
-                        <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
-                          {!opened ? (
-                            <button
-                              type="button"
-                              onClick={() => void openRow(row.rowKey)}
-                              className="w-fit text-left text-xs text-sky-400/90 underline hover:text-sky-300"
-                            >
-                              Open row
-                            </button>
-                          ) : null}
-                          <Link
-                            href={`/aligned-instructors-admin/new?rowKey=${encodeURIComponent(row.rowKey)}`}
-                            className="text-xs text-red-400/90 underline hover:text-red-300"
-                          >
-                            Audit this row
-                          </Link>
-                        </div>
+                        <Link
+                          href={`/aligned-instructors-admin/new?rowKey=${encodeURIComponent(row.rowKey)}`}
+                          className="text-xs text-red-400/90 underline hover:text-red-300"
+                        >
+                          Audit this row
+                        </Link>
                       </td>
                     </tr>
                   );
@@ -306,10 +251,10 @@ export function AlignedInstructorAuditWorkspace({
                     Updated
                   </th>
                   <th className="whitespace-nowrap px-3 py-2 font-semibold">
-                    First
+                    Instructor first
                   </th>
                   <th className="whitespace-nowrap px-3 py-2 font-semibold">
-                    Last
+                    Instructor last
                   </th>
                   <th className="whitespace-nowrap px-3 py-2 font-semibold">
                     Auditor
