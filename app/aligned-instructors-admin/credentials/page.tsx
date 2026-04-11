@@ -4,28 +4,20 @@ import {
   candidateFirstLastFromRows,
   candidateProfileSlugFromNormalizedKey,
   findInstructorNameInRow,
-  findRosterRowKeyForCandidateName,
   normalizeInstructorKey,
-  summarizeCandidateSubmissionLabels,
 } from "@/lib/aha-alignment-candidate-helpers";
 import { getHiddenCandidateDocumentRowKeys } from "@/lib/aligned-candidate-document-hides-store";
 import {
   attachCredentialsRowKeys,
   fetchAlignedInstructorsCredentialsTable,
 } from "@/lib/aligned-instructors-credentials-sheet";
-import { buildAlignedInstructorRowSummaries } from "@/lib/aligned-instructor-row-summaries";
-import { fetchMetiBlsInstructorsTable } from "@/lib/meti-bls-instructors-sheet";
 
 export const dynamic = "force-dynamic";
 
 type CandidateSummary = {
   normalizedKey: string;
-  displayName: string;
   firstName: string;
   lastName: string;
-  submissionCount: number;
-  submissionStatusLabel: string;
-  rosterRowKey: string | null;
   profileSlug: string;
 };
 
@@ -35,8 +27,6 @@ export default async function AlignedInstructorsCredentialsPage() {
   let loadError: string | null = null;
   let rowsWithKeys = attachCredentialsRowKeys([], []);
 
-  let rosterSummaries = buildAlignedInstructorRowSummaries([], []);
-
   try {
     const data = await fetchAlignedInstructorsCredentialsTable();
     headers = data.headers;
@@ -45,16 +35,6 @@ export default async function AlignedInstructorsCredentialsPage() {
   } catch (e) {
     loadError =
       e instanceof Error ? e.message : "Could not load the spreadsheet.";
-  }
-
-  try {
-    const roster = await fetchMetiBlsInstructorsTable();
-    rosterSummaries = buildAlignedInstructorRowSummaries(
-      roster.headers,
-      roster.rows,
-    );
-  } catch {
-    /* roster optional for links */
   }
 
   const hidden = await getHiddenCandidateDocumentRowKeys();
@@ -89,15 +69,8 @@ export default async function AlignedInstructorsCredentialsPage() {
       );
       return {
         normalizedKey,
-        displayName,
         firstName,
         lastName,
-        submissionCount: rows.length,
-        submissionStatusLabel: summarizeCandidateSubmissionLabels(rows, headers),
-        rosterRowKey: findRosterRowKeyForCandidateName(
-          displayName,
-          rosterSummaries,
-        ),
         profileSlug: candidateProfileSlugFromNormalizedKey(normalizedKey),
       };
     })
@@ -154,15 +127,6 @@ export default async function AlignedInstructorsCredentialsPage() {
                 <th className="whitespace-nowrap px-3 py-2 font-semibold">
                   Last name
                 </th>
-                <th className="min-w-[12rem] px-3 py-2 font-semibold">
-                  Submission status
-                </th>
-                <th className="whitespace-nowrap px-3 py-2 font-semibold">
-                  Documents
-                </th>
-                <th className="whitespace-nowrap px-3 py-2 font-semibold">
-                  Roster audit
-                </th>
                 <th className="whitespace-nowrap px-3 py-2 font-semibold">
                   Profile
                 </th>
@@ -176,24 +140,6 @@ export default async function AlignedInstructorsCredentialsPage() {
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-white">
                     {c.lastName || "—"}
-                  </td>
-                  <td className="max-w-[20rem] px-3 py-2 text-zinc-200">
-                    {c.submissionStatusLabel}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2">
-                    {c.submissionCount}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2">
-                    {c.rosterRowKey ? (
-                      <Link
-                        href={`/aligned-instructors-admin/new?rowKey=${encodeURIComponent(c.rosterRowKey)}`}
-                        className="text-red-400/90 underline hover:text-red-300"
-                      >
-                        Audit this row
-                      </Link>
-                    ) : (
-                      <span className="text-zinc-600">No roster match</span>
-                    )}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2">
                     <Link
