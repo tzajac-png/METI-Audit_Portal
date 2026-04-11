@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { COURSE_TYPES, type CourseType } from "@/lib/course";
-import { INSTRUCTOR_DOCUMENT_GOOGLE_FORM_URL } from "@/lib/instructor-upload-form";
 
 const ROUTES: Record<CourseType, string> = {
   BLS: "/courses/bls",
@@ -30,25 +29,6 @@ export function CourseTypeDashboard() {
           Choose a program to view scheduled courses, locations, and participant
           rosters pulled from METI spreadsheets.
         </p>
-      </div>
-
-      <div className="rounded-xl border border-red-900/35 bg-[var(--surface)] p-5 shadow-lg shadow-black/20">
-        <h2 className="text-lg font-semibold text-white">
-          Instructor document submissions
-        </h2>
-        <p className="mt-1 max-w-2xl text-sm text-zinc-500">
-          Upload credentials and paperwork through the Google Form — files are
-          stored in Drive and linked on each instructor&apos;s directory page by
-          document type.
-        </p>
-        <a
-          href={INSTRUCTOR_DOCUMENT_GOOGLE_FORM_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 inline-flex rounded-lg border border-red-600/60 bg-red-950/50 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-950/80"
-        >
-          Open instructor document form →
-        </a>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

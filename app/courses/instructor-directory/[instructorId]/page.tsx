@@ -147,16 +147,15 @@ export default async function InstructorDirectoryDetailPage({ params }: Props) {
 
       <section className="rounded-xl border border-red-900/30 bg-[var(--surface)] p-6">
         <h2 className="text-lg font-semibold text-white" id="instructor-uploads">
-          Documents & uploads
+          Documents
         </h2>
         <p className="mt-1 text-xs text-zinc-500">
-          Organized by program (BLS, ACLS, PALS). Google Form submissions appear
-          under each document type; optional manual portal uploads and expiration
-          dates are below that.
+          Organized by program (BLS, ACLS, PALS). Data comes from the instructor
+          document Google Form; expiration for each credential uses the latest
+          filing for that type.
         </p>
         <div className="mt-6">
           <InstructorDocumentUploads
-            instructorId={segment}
             formSubmissionsByCategory={formSubmissionsByCategory}
             formSubmissionsUnmapped={formSubmissionsUnmapped}
           />
