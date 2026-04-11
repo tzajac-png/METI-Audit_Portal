@@ -10,6 +10,7 @@ import {
   type ComplianceChecklist,
 } from "@/lib/audit-constants";
 import { serverlessBlobGuardResponse } from "@/lib/serverless-blob-guard";
+import { stripAlignedBoilerplateFromSnapshot } from "@/lib/aligned-instructor-snapshot-filter";
 import {
   createAlignedInstructorAuditRecord,
   deleteAlignedInstructorAudit,
@@ -77,11 +78,13 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
-      rowSnapshot = Object.fromEntries(
-        Object.entries(parsed as Record<string, unknown>).map(([k, v]) => [
-          k,
-          typeof v === "string" ? v : String(v ?? ""),
-        ]),
+      rowSnapshot = stripAlignedBoilerplateFromSnapshot(
+        Object.fromEntries(
+          Object.entries(parsed as Record<string, unknown>).map(([k, v]) => [
+            k,
+            typeof v === "string" ? v : String(v ?? ""),
+          ]),
+        ),
       );
     } catch {
       return NextResponse.json(

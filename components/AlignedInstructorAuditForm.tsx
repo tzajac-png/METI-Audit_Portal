@@ -12,6 +12,7 @@ import {
   emptyCompliance,
 } from "@/lib/audit-constants";
 import { readApiErrorMessage } from "@/lib/read-api-error";
+import { stripAlignedBoilerplateFromSnapshot } from "@/lib/aligned-instructor-snapshot-filter";
 
 type ApiGet = {
   records: AlignedInstructorAuditRecord[];
@@ -58,7 +59,7 @@ export function AlignedInstructorAuditForm({
       const row = rosterRows.find((x) => x.rowKey === key);
       if (row) {
         setDisplayLabel(row.displayLabel);
-        setRowSnapshot({ ...row.snapshot });
+        setRowSnapshot(stripAlignedBoilerplateFromSnapshot({ ...row.snapshot }));
       } else {
         setDisplayLabel("");
         setRowSnapshot({});
@@ -96,7 +97,7 @@ export function AlignedInstructorAuditForm({
         }
         setRowKey(r.rowKey);
         setDisplayLabel(r.displayLabel === "—" ? "" : r.displayLabel);
-        setRowSnapshot({ ...r.rowSnapshot });
+        setRowSnapshot(stripAlignedBoilerplateFromSnapshot({ ...r.rowSnapshot }));
         setAuditorName(r.auditorName);
         setNotes(r.notes);
         setCompliance({ ...r.compliance });
@@ -136,6 +137,19 @@ export function AlignedInstructorAuditForm({
       }
     })();
   }, [editRecordId]);
+
+  /** Marks row as opened (New submission → status workflow) when reviewing in the form. */
+  useEffect(() => {
+    if (editRecordId) return;
+    const k = rowKey.trim();
+    if (!k) return;
+    void fetch("/api/aligned-instructor-submission", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rowKey: k, action: "open" }),
+      credentials: "include",
+    }).catch(() => {});
+  }, [rowKey, editRecordId]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

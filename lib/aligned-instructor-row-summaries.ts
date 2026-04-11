@@ -2,6 +2,8 @@
 export type AlignedInstructorRowSummary = {
   rowKey: string;
   displayLabel: string;
+  firstName: string;
+  lastName: string;
   /** Column header → cell value (audit snapshot source) */
   snapshot: Record<string, string>;
 };
@@ -15,7 +17,79 @@ function stableRowKeyFromParts(parts: string[]): string {
   return `aligned-${Math.abs(h).toString(36)}`;
 }
 
-function pickDisplayLabel(
+function findCell(
+  row: Record<string, string>,
+  headers: string[],
+  patterns: RegExp[],
+): string {
+  for (const h of headers) {
+    const ht = h.trim();
+    for (const re of patterns) {
+      if (re.test(ht)) {
+        const v = row[h]?.trim();
+        if (v) return v;
+      }
+    }
+  }
+  return "";
+}
+
+/**
+ * Prefer explicit First / Last columns; else split a single Name column.
+ */
+export function parseFirstLastName(
+  row: Record<string, string>,
+  headers: string[],
+): { firstName: string; lastName: string; fullName: string } {
+  const firstCol = findCell(row, headers, [
+    /^first\s*name$/i,
+    /^first$/i,
+    /^given\s*name$/i,
+  ]);
+  const lastCol = findCell(row, headers, [
+    /^last\s*name$/i,
+    /^last$/i,
+    /^surname$/i,
+    /^family\s*name$/i,
+  ]);
+
+  if (firstCol || lastCol) {
+    const fullName = [firstCol, lastCol].filter(Boolean).join(" ").trim();
+    return {
+      firstName: firstCol,
+      lastName: lastCol,
+      fullName: fullName || pickFullNameFallback(row, headers),
+    };
+  }
+
+  const combined = findCell(row, headers, [
+    /^full\s*name$/i,
+    /^name$/i,
+    /^instructor\s*name$/i,
+    /instructor/i,
+  ]);
+  if (combined) {
+    const parts = combined.split(/\s+/).filter(Boolean);
+    if (parts.length === 1) {
+      return { firstName: parts[0] ?? "", lastName: "", fullName: combined };
+    }
+    return {
+      firstName: parts[0] ?? "",
+      lastName: parts.slice(1).join(" "),
+      fullName: combined,
+    };
+  }
+
+  const fallback = pickFullNameFallback(row, headers);
+  const parts = fallback.split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts[0] ?? "",
+    lastName: parts.slice(1).join(" "),
+    fullName: fallback,
+  };
+}
+
+function pickFullNameFallback(
   row: Record<string, string>,
   headers: string[],
 ): string {
@@ -38,9 +112,12 @@ export function buildAlignedInstructorRowSummaries(
 ): AlignedInstructorRowSummary[] {
   return rows.map((row) => {
     const parts = headers.map((h) => (row[h] ?? "").trim());
+    const { firstName, lastName, fullName } = parseFirstLastName(row, headers);
     return {
       rowKey: stableRowKeyFromParts(parts),
-      displayLabel: pickDisplayLabel(row, headers),
+      displayLabel: fullName,
+      firstName,
+      lastName,
       snapshot: Object.fromEntries(
         headers.map((h) => [h, (row[h] ?? "").trim()]),
       ),
