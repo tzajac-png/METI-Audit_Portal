@@ -79,6 +79,25 @@ export function pickTimestamp(
   return "";
 }
 
+/** Form / sheet column for workflow status (e.g. Cards issued). */
+export function pickSubmissionStatus(
+  row: Record<string, string>,
+  headers: string[],
+): string {
+  for (const h of headers) {
+    const ht = h.trim();
+    if (
+      /^status$/i.test(ht) ||
+      /submission.*status/i.test(ht) ||
+      /cards issues|documents audited|audit status/i.test(ht)
+    ) {
+      const v = (row[h] ?? "").trim();
+      if (v) return v;
+    }
+  }
+  return "";
+}
+
 export function findRosterRowKeyForCandidateName(
   instructorName: string,
   summaries: AlignedInstructorRowSummary[],
@@ -97,6 +116,7 @@ export type CandidateSubmission = {
   rowKey: string;
   instructorName: string;
   documentType: string;
+  status: string;
   expiration: string;
   uploadUrl: string;
   timestamp: string;
@@ -111,6 +131,7 @@ export function rowToCandidateSubmission(
     rowKey,
     instructorName: findInstructorNameInRow(row, headers),
     documentType: pickDocumentType(row, headers),
+    status: pickSubmissionStatus(row, headers),
     expiration: pickExpiration(row, headers),
     uploadUrl: pickUploadDocument(row, headers),
     timestamp: pickTimestamp(row, headers),

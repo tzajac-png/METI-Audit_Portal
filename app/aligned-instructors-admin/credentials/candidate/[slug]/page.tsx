@@ -1,13 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CandidateDocumentSubmissionsList } from "@/components/CandidateDocumentSubmissionsList";
+import { CandidateProfileLayout } from "@/components/CandidateProfileLayout";
 import { AlignedInstructorsAdminToolbar } from "@/components/AlignedInstructorsAdminToolbar";
 import {
+  findInstructorNameInRow,
   findRosterRowKeyForCandidateName,
   normalizedKeyFromCandidateProfileSlug,
   normalizeInstructorKey,
   rowToCandidateSubmission,
 } from "@/lib/aha-alignment-candidate-helpers";
+import {
+  buildCandidateNameHero,
+  groupMergedFieldsBySection,
+  mergeCandidateSheetFields,
+} from "@/lib/aha-candidate-profile-layout";
 import { getHiddenCandidateDocumentRowKeys } from "@/lib/aligned-candidate-document-hides-store";
 import {
   alignedInstructorsCredentialsSheetEditUrl,
@@ -40,12 +46,22 @@ export default async function AhaAlignmentCandidateProfilePage({ params }: Props
   const { headers, rows } = data;
   const keyed = attachCredentialsRowKeys(headers, rows);
 
-  const submissions = keyed
+  const keyedVisible = keyed
     .filter((x) => !hidden.has(x.rowKey))
-    .map(({ row, rowKey }) => rowToCandidateSubmission(row, headers, rowKey))
     .filter(
-      (s) => normalizeInstructorKey(s.instructorName) === targetKey,
+      (x) =>
+        normalizeInstructorKey(findInstructorNameInRow(x.row, headers)) ===
+        targetKey,
     );
+
+  const submissions = keyedVisible.map(({ row, rowKey }) =>
+    rowToCandidateSubmission(row, headers, rowKey),
+  );
+
+  const merged = mergeCandidateSheetFields(
+    keyedVisible.map(({ row, rowKey }) => ({ row, rowKey })),
+    headers,
+  );
 
   let rosterSummaries = buildAlignedInstructorRowSummaries([], []);
   try {
@@ -65,6 +81,9 @@ export default async function AhaAlignmentCandidateProfilePage({ params }: Props
       .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : ""))
       .join(" ");
 
+  const hero = buildCandidateNameHero(merged, displayName);
+  const sections = groupMergedFieldsBySection(merged, hero.excludeHeaders);
+
   const rosterRowKey = findRosterRowKeyForCandidateName(
     submissions[0]?.instructorName ?? displayName,
     rosterSummaries,
@@ -73,14 +92,13 @@ export default async function AhaAlignmentCandidateProfilePage({ params }: Props
   const sheetUrl = alignedInstructorsCredentialsSheetEditUrl();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <AlignedInstructorsAdminToolbar />
 
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-semibold text-white">{displayName}</h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            AHA alignment candidate — document submissions from the spreadsheet.
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+            AHA alignment candidate
           </p>
           <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
             <span>Sheet refreshed {new Date(data.fetchedAt).toLocaleString()}</span>
@@ -90,7 +108,7 @@ export default async function AhaAlignmentCandidateProfilePage({ params }: Props
               rel="noopener noreferrer"
               className="text-red-400/90 underline hover:text-red-300"
             >
-              Open candidate spreadsheet tab
+              Open spreadsheet tab
             </a>
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -116,16 +134,20 @@ export default async function AhaAlignmentCandidateProfilePage({ params }: Props
         </Link>
       </div>
 
-      <section className="rounded-xl border border-red-900/30 bg-[var(--surface)] p-6">
-        <h3 className="text-sm font-medium text-zinc-400">Submitted documents</h3>
-        <p className="mt-1 text-xs text-zinc-600">
-          Links come from the <span className="text-zinc-500">Upload Document</span>{" "}
-          column. Remove from portal hides a submission here only.
-        </p>
-        <div className="mt-4">
-          <CandidateDocumentSubmissionsList submissions={submissions} />
-        </div>
-      </section>
+      <div className="rounded-2xl border border-red-900/25 bg-[var(--surface)] p-6 sm:p-10">
+        {merged.length === 0 && submissions.length === 0 ? (
+          <p className="text-sm text-zinc-500">
+            No data for this candidate (or everything was removed from the
+            portal).
+          </p>
+        ) : (
+          <CandidateProfileLayout
+            hero={hero}
+            sections={sections}
+            submissions={submissions}
+          />
+        )}
+      </div>
     </div>
   );
 }
