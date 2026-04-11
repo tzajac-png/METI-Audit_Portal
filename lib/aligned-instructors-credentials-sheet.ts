@@ -5,9 +5,9 @@ export const DEFAULT_ALIGNED_CREDENTIALS_SHEET_ID =
   "1CGsM8UNbd0Zz0Cgv7_i4fg_hHU5TP6V384z4LN-ge1k";
 
 /**
- * Instructor candidate pages (list + profile + raw row) use this tab — same default gid as
- * the aligned roster in meti-bls-instructors-sheet (1766425749).
- * Override with GOOGLE_SHEET_GID_ALIGNED_INSTRUCTOR_CREDENTIALS (e.g. document-only tab 1631318320).
+ * Instructor candidate pages (list + profile + raw row) use this tab.
+ * Default workbook/gid may differ from the main aligned roster (see meti-bls-instructors-sheet).
+ * Override with GOOGLE_SHEET_ID_ALIGNED_INSTRUCTOR_CREDENTIALS / GOOGLE_SHEET_GID_ALIGNED_INSTRUCTOR_CREDENTIALS.
  * https://docs.google.com/spreadsheets/d/1CGsM8UNbd0Zz0Cgv7_i4fg_hHU5TP6V384z4LN-ge1k/edit?gid=1766425749#gid=1766425749
  */
 export const DEFAULT_ALIGNED_CREDENTIALS_GID = "1766425749";
