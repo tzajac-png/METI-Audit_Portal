@@ -46,7 +46,6 @@ export function AuditRecordForm({
   );
   const [notes, setNotes] = useState("");
   const [compliance, setCompliance] = useState<ComplianceChecklist>(emptyCompliance());
-  const [file, setFile] = useState<File | null>(null);
 
   const appliedInitialCourse = useRef(false);
 
@@ -102,7 +101,6 @@ export function AuditRecordForm({
         setAuditorName(r.auditorName);
         setNotes(r.notes);
         setCompliance({ ...r.compliance });
-        setFile(null);
       } catch {
         if (!cancelled) setLoadError("Could not load audit records.");
       } finally {
@@ -157,7 +155,6 @@ export function AuditRecordForm({
       (Object.keys(compliance) as (keyof ComplianceChecklist)[]).forEach((k) => {
         fd.set(`compliance_${k}`, compliance[k] ? "true" : "false");
       });
-      if (file) fd.set("ecardFile", file);
       if (editRecordId) fd.set("recordId", editRecordId);
 
       const res = await fetch("/api/audit-records", {
@@ -208,12 +205,8 @@ export function AuditRecordForm({
             {editRecordId ? "Edit audit record" : "Record a course audit"}
           </h2>
           <p className="mt-1 text-sm text-zinc-500">
-            Choose the class, auditor, compliance checklist, optional eCard / document
-            upload, and notes. Only Tyler Zajac or Ben Bonathan may be selected as
-            auditor.
-            {editRecordId
-              ? " Upload a new file only if you want to replace the existing attachment."
-              : null}
+            Choose the class, auditor, compliance checklist, and notes. Only Tyler
+            Zajac or Ben Bonathan may be selected as auditor.
           </p>
         </div>
         <Link
@@ -328,18 +321,6 @@ export function AuditRecordForm({
             )}
           </ul>
         </fieldset>
-
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-zinc-500">
-            eCard / document upload (PDF or image, max ~4 MB)
-          </span>
-          <input
-            type="file"
-            accept=".pdf,image/png,image/jpeg,image/webp,application/pdf"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm text-zinc-400 file:mr-4 file:rounded-lg file:border-0 file:bg-red-950/50 file:px-4 file:py-2 file:text-sm file:text-red-200"
-          />
-        </label>
 
         <label className="block">
           <span className="mb-1 block text-xs font-medium text-zinc-500">

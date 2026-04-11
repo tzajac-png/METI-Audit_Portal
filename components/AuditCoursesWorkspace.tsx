@@ -180,7 +180,7 @@ export function AuditCoursesWorkspace({ courses }: Props) {
       <section className="rounded-xl border border-red-900/30 bg-[var(--surface)] p-6">
         <h2 className="text-lg font-semibold text-white">Audit history</h2>
         <p className="mt-1 text-sm text-zinc-500">
-          Saved audit submissions with compliance progress and optional files. Use{" "}
+          Saved audit submissions with compliance progress. Use{" "}
           <span className="text-zinc-400">Edit</span> to open the form on a detail page.
         </p>
 
@@ -206,7 +206,6 @@ export function AuditCoursesWorkspace({ courses }: Props) {
                   <th className="whitespace-nowrap px-3 py-2 font-semibold">
                     Compliance
                   </th>
-                  <th className="px-3 py-2 font-semibold">eCard / file</th>
                   <th className="px-3 py-2 font-semibold" />
                 </tr>
               </thead>
@@ -241,18 +240,6 @@ export function AuditCoursesWorkspace({ courses }: Props) {
                         >
                           {ratio.done}/{ratio.total}
                         </span>
-                      </td>
-                      <td className="px-3 py-2">
-                        {r.ecardFile ? (
-                          <a
-                            href={`/api/audit-records/${r.id}/download`}
-                            className="text-red-400 hover:text-red-300 hover:underline"
-                          >
-                            {r.ecardFile.originalName}
-                          </a>
-                        ) : (
-                          "—"
-                        )}
                       </td>
                       <td className="px-3 py-2 text-right">
                         <div className="flex justify-end gap-2">
