@@ -60,8 +60,8 @@ export function CandidateSubmissionHistoryTable({ submissions }: Props) {
       ) : null}
       <div className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-950/50">
         <table className="min-w-full border-collapse text-left text-sm">
-          <thead>
-            <tr className="border-b border-zinc-800 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                   <thead>
+            <tr className="border-b border-zinc-800 bg-zinc-900/40 text-left text-xs font-semibold text-zinc-400">
               <th className="whitespace-nowrap px-4 py-3">Date</th>
               <th className="min-w-[10rem] px-4 py-3">Status</th>
               <th className="min-w-[12rem] px-4 py-3">Attachments</th>

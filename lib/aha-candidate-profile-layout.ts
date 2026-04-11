@@ -130,6 +130,7 @@ export type ProfileSectionId =
   | "required_certs"
   | "documents"
   | "dates"
+  | "monitor_paperwork"
   | "submission_meta"
   | "other";
 
@@ -138,6 +139,7 @@ const SECTION_ORDER: ProfileSectionId[] = [
   "required_certs",
   "documents",
   "dates",
+  "monitor_paperwork",
   "submission_meta",
   "other",
 ];
@@ -147,13 +149,39 @@ const SECTION_LABELS: Record<ProfileSectionId, string> = {
   required_certs: "Required Certs",
   documents: "Documents & uploads",
   dates: "Dates",
+  monitor_paperwork: "Monitor paperwork",
   submission_meta: "Submission details",
   other: "Additional fields",
 };
 
+/** Order fields like the source sheet (left-to-right column order). */
+function sortMergedByHeaderOrder(
+  fields: MergedCandidateField[],
+  headers: string[],
+): MergedCandidateField[] {
+  const idx = new Map<string, number>();
+  headers.forEach((h, i) => {
+    if (!idx.has(h)) idx.set(h, i);
+  });
+  return [...fields].sort((a, b) => {
+    const ia = idx.has(a.header) ? idx.get(a.header)! : 99999;
+    const ib = idx.has(b.header) ? idx.get(b.header)! : 99999;
+    if (ia !== ib) return ia - ib;
+    return a.header.localeCompare(b.header);
+  });
+}
+
 export function profileSectionForHeader(header: string): ProfileSectionId {
   const t = header.trim();
   if (/^timestamp$/i.test(t)) return "submission_meta";
+
+  if (
+    /monitor\s*paperwork|instructor\s*application|initial\s*monitoring|instructor\s*monitoring/i.test(
+      t,
+    )
+  ) {
+    return "monitor_paperwork";
+  }
 
   if (
     /email|telephone|phone|contact\s*sheet|business\s*name|boss|supervisor|square\s*account|card\s*on\s*file|ecard|paying|responsible\s*for/i.test(
@@ -173,7 +201,7 @@ export function profileSectionForHeader(header: string): ProfileSectionId {
   }
 
   if (
-    /resume|cv|contract|signed|monitor|application|upload|attachment|file|\.pdf|drop\s*files|instructor\s*monitoring|student_ecard|ecard\s*\(/i.test(
+    /resume|cv|contract|signed|application|upload|attachment|file|\.pdf|drop\s*files|student_ecard|ecard\s*\(/i.test(
       t,
     ) ||
     /bls\s*cert|acls\s*cert|pals\s*cert/i.test(t)
@@ -195,6 +223,7 @@ export function profileSectionForHeader(header: string): ProfileSectionId {
 export function groupMergedFieldsBySection(
   merged: MergedCandidateField[],
   excludeHeaders: Set<string>,
+  headers: string[],
 ): { id: ProfileSectionId; label: string; fields: MergedCandidateField[] }[] {
   const buckets = new Map<ProfileSectionId, MergedCandidateField[]>();
   for (const id of SECTION_ORDER) buckets.set(id, []);
@@ -208,6 +237,6 @@ export function groupMergedFieldsBySection(
   return SECTION_ORDER.map((id) => ({
     id,
     label: SECTION_LABELS[id],
-    fields: buckets.get(id) ?? [],
+    fields: sortMergedByHeaderOrder(buckets.get(id) ?? [], headers),
   })).filter((s) => s.fields.length > 0);
 }

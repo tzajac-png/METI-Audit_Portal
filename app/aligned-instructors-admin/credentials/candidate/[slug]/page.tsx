@@ -82,7 +82,11 @@ export default async function AhaAlignmentCandidateProfilePage({ params }: Props
       .join(" ");
 
   const hero = buildCandidateNameHero(merged, displayName);
-  const sections = groupMergedFieldsBySection(merged, hero.excludeHeaders);
+  const sections = groupMergedFieldsBySection(
+    merged,
+    hero.excludeHeaders,
+    headers,
+  );
 
   const rosterRowKey = findRosterRowKeyForCandidateName(
     submissions[0]?.instructorName ?? displayName,
@@ -145,6 +149,7 @@ export default async function AhaAlignmentCandidateProfilePage({ params }: Props
             hero={hero}
             sections={sections}
             submissions={submissions}
+            sheetEditUrl={sheetUrl}
           />
         )}
       </div>

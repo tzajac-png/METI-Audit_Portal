@@ -2,8 +2,8 @@ import { fetchSheetTableFromWorkbook } from "@/lib/google-sheet";
 
 /**
  * BLS AHA aligned instructors roster (audit list + row keys), gid 1766425749.
- * Candidate document uploads use tab 1631318320 in the same workbook
- * (see aligned-instructors-credentials-sheet).
+ * Instructor candidate UI defaults to this same tab (see aligned-instructors-credentials-sheet);
+ * override credentials gid in env for a different tab (e.g. document uploads only).
  */
 export const DEFAULT_METI_BLS_INSTRUCTORS_SHEET_ID =
   "1CGsM8UNbd0Zz0Cgv7_i4fg_hHU5TP6V384z4LN-ge1k";

@@ -123,10 +123,13 @@ export default async function AlignedInstructorsCredentialsPage() {
           AHA alignment — candidate documents
         </h2>
         <p className="mt-1 text-sm text-zinc-400">
-          Submissions from the{" "}
-          <span className="text-zinc-300">AHA Alignment Candidate Information</span>{" "}
-          tab: instructor name, document type, and upload links. Open a candidate
-          for full detail. Removing a row here only hides it in the portal.
+          Rows from the instructor candidate tab in the linked workbook (same source as
+          the aligned roster unless you override{" "}
+          <span className="font-mono text-zinc-500">
+            GOOGLE_SHEET_GID_ALIGNED_INSTRUCTOR_CREDENTIALS
+          </span>
+          ). Open a candidate for full detail. Removing a row here only hides it in the
+          portal.
         </p>
         <p className="mt-3 flex flex-wrap items-center gap-2">
           <a

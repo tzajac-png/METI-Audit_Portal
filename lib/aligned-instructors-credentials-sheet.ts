@@ -5,11 +5,12 @@ export const DEFAULT_ALIGNED_CREDENTIALS_SHEET_ID =
   "1CGsM8UNbd0Zz0Cgv7_i4fg_hHU5TP6V384z4LN-ge1k";
 
 /**
- * Tab: AHA Alignment Candidate Information — Timestamp, Instructor Name, Document Type,
- * Expiration, Upload Document (not the main aligned roster tab).
- * https://docs.google.com/spreadsheets/d/1CGsM8UNbd0Zz0Cgv7_i4fg_hHU5TP6V384z4LN-ge1k/edit?gid=1631318320#gid=1631318320
+ * Instructor candidate pages (list + profile + raw row) use this tab — same default gid as
+ * the aligned roster in meti-bls-instructors-sheet (1766425749).
+ * Override with GOOGLE_SHEET_GID_ALIGNED_INSTRUCTOR_CREDENTIALS (e.g. document-only tab 1631318320).
+ * https://docs.google.com/spreadsheets/d/1CGsM8UNbd0Zz0Cgv7_i4fg_hHU5TP6V384z4LN-ge1k/edit?gid=1766425749#gid=1766425749
  */
-export const DEFAULT_ALIGNED_CREDENTIALS_GID = "1631318320";
+export const DEFAULT_ALIGNED_CREDENTIALS_GID = "1766425749";
 
 export function alignedInstructorsCredentialsSheetId(): string {
   return (
