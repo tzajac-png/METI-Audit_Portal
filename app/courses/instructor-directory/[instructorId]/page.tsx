@@ -8,6 +8,12 @@ import {
   pickInstructorName,
 } from "@/lib/instructor-id";
 import { fetchInstructorDirectory } from "@/lib/instructor-directory";
+import {
+  fetchInstructorFormSubmissions,
+  filterSubmissionsForPerson,
+  groupFormSubmissionsByCategory,
+  type GroupedFormSubmissions,
+} from "@/lib/instructor-form-submissions";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +68,22 @@ export default async function InstructorDirectoryDetailPage({ params }: Props) {
   const { rows, fetchedAt } = await fetchInstructorDirectory();
   const person = findInstructorRowByDecodedId(rows, decoded);
   if (!person) notFound();
+
+  let formSubmissionsByCategory: ReturnType<
+    typeof groupFormSubmissionsByCategory
+  >["byCategory"] = {};
+  let formSubmissionsUnmapped: ReturnType<
+    typeof groupFormSubmissionsByCategory
+  >["unmapped"] = [];
+  try {
+    const { submissions } = await fetchInstructorFormSubmissions();
+    const mine = filterSubmissionsForPerson(submissions, person);
+    const grouped = groupFormSubmissionsByCategory(mine);
+    formSubmissionsByCategory = grouped.byCategory;
+    formSubmissionsUnmapped = grouped.unmapped;
+  } catch {
+    /* Sheet tab optional — page still loads without form data */
+  }
 
   const allKeys = Object.keys(person).filter(
     (k) => k.trim() !== "" && !HIDDEN_ROSTER_KEYS.has(k),
@@ -129,11 +151,16 @@ export default async function InstructorDirectoryDetailPage({ params }: Props) {
           Documents & uploads
         </h2>
         <p className="mt-1 text-xs text-zinc-500">
-          Organized by program (BLS, ACLS, PALS). Set expiration dates for
-          provider and instructor credentials; other paperwork is below.
+          Organized by program (BLS, ACLS, PALS). Google Form submissions appear
+          under each document type; optional manual portal uploads and expiration
+          dates are below that.
         </p>
         <div className="mt-6">
-          <InstructorDocumentUploads instructorId={segment} />
+          <InstructorDocumentUploads
+            instructorId={segment}
+            formSubmissionsByCategory={groupedForm.byCategory}
+            formSubmissionsUnmapped={groupedForm.unmapped}
+          />
         </div>
       </section>
     </div>

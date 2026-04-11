@@ -10,6 +10,7 @@ import {
   pickInstructorPhone,
 } from "@/lib/instructor-id";
 import { fetchInstructorDirectory } from "@/lib/instructor-directory";
+import { INSTRUCTOR_DOCUMENT_GOOGLE_FORM_URL } from "@/lib/instructor-upload-form";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,19 @@ export default async function InstructorDirectoryPage() {
             ← Dashboard
           </Link>
         </div>
+
+        <p className="rounded-lg border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-sm text-zinc-400">
+          Submit credentials and paperwork via the{" "}
+          <a
+            href={INSTRUCTOR_DOCUMENT_GOOGLE_FORM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-red-400 underline hover:text-red-300"
+          >
+            instructor document form
+          </a>
+          . Files are linked on each instructor&apos;s detail page by document type.
+        </p>
 
         <InstructorDirectoryTiles items={items} />
       </div>

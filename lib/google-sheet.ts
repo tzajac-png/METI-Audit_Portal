@@ -22,6 +22,9 @@ export const DEFAULT_GID_STUDENT_DIRECTORY = "590953723";
 /** Tab: Instructor directory (person roster — names, credentials, etc.) */
 export const DEFAULT_GID_INSTRUCTOR_DIRECTORY = "482270132";
 
+/** Tab: Google Form responses — instructor document uploads (type, link, expiration) */
+export const DEFAULT_GID_INSTRUCTOR_UPLOAD_FORM = "1991989031";
+
 function buildExportUrl(sheetId: string, gid: string): string {
   return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
 }

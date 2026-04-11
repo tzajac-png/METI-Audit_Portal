@@ -5,6 +5,8 @@ import {
   INSTRUCTOR_UPLOAD_OTHER,
   INSTRUCTOR_UPLOAD_SECTIONS,
 } from "@/lib/instructor-upload-labels";
+import type { InstructorFormSubmission } from "@/lib/instructor-form-submissions";
+import { INSTRUCTOR_DOCUMENT_GOOGLE_FORM_URL } from "@/lib/instructor-upload-form";
 import type {
   InstructorUploadCategory,
   InstructorUploadEntry,
@@ -13,6 +15,12 @@ import { readApiErrorMessage } from "@/lib/read-api-error";
 
 type Props = {
   instructorId: string;
+  /** Submissions from the Google Form / sheet tab, grouped by mapped document type */
+  formSubmissionsByCategory?: Partial<
+    Record<InstructorUploadCategory, InstructorFormSubmission[]>
+  >;
+  /** Form rows whose Document Type did not match a portal category */
+  formSubmissionsUnmapped?: InstructorFormSubmission[];
 };
 
 type UploadMap = Partial<
@@ -28,7 +36,76 @@ const navLinks = [
   { id: "other", label: "Other" },
 ];
 
-export function InstructorDocumentUploads({ instructorId }: Props) {
+function formatFormTimestamp(raw: string): string {
+  const d = new Date(raw);
+  if (!Number.isNaN(d.getTime())) return d.toLocaleString();
+  return raw || "—";
+}
+
+function FormSubmissionLog({
+  entries,
+  heading,
+}: {
+  entries: InstructorFormSubmission[];
+  /** Omit or pass null to hide the label (e.g. unmapped section has its own title). */
+  heading?: string | null;
+}) {
+  if (entries.length === 0) return null;
+  return (
+    <div
+      className={
+        heading
+          ? "mt-4 border-t border-zinc-800/80 pt-3"
+          : "mt-2 border-t border-zinc-800/80 pt-3"
+      }
+    >
+      {heading ? (
+        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+          {heading}
+        </p>
+      ) : null}
+      <ul className={heading ? "mt-2 space-y-2 text-xs" : "space-y-2 text-xs"}>
+        {entries.map((s) => (
+          <li
+            key={s.id}
+            className="rounded-md border border-zinc-800/60 bg-black/20 px-3 py-2"
+          >
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <a
+                href={s.documentUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-red-400/95 hover:text-red-300"
+              >
+                Open document
+              </a>
+              <span className="text-zinc-500">
+                {formatFormTimestamp(s.timestamp)}
+              </span>
+            </div>
+            <p className="mt-1 text-zinc-500">
+              Type:{" "}
+              <span className="text-zinc-400">{s.documentType}</span>
+              {s.expirationDate ? (
+                <>
+                  {" "}
+                  · Expires:{" "}
+                  <span className="text-zinc-400">{s.expirationDate}</span>
+                </>
+              ) : null}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export function InstructorDocumentUploads({
+  instructorId,
+  formSubmissionsByCategory = {},
+  formSubmissionsUnmapped = [],
+}: Props) {
   const [uploads, setUploads] = useState<UploadMap>({});
   const [expirations, setExpirations] = useState<ExpirationMap>({});
   const [loading, setLoading] = useState(true);
@@ -201,6 +278,21 @@ export function InstructorDocumentUploads({ instructorId }: Props) {
         </p>
       ) : null}
 
+      <p className="rounded-lg border border-emerald-900/35 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-100/90">
+        <span className="font-medium text-emerald-200">Primary:</span> instructors
+        submit documents through the{" "}
+        <a
+          href={INSTRUCTOR_DOCUMENT_GOOGLE_FORM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-red-400 underline hover:text-red-300"
+        >
+          Google Form
+        </a>
+        . Links appear below by document type. Optional portal uploads are for
+        legacy or admin-only files.
+      </p>
+
       <nav
         aria-label="Document sections"
         className="sticky top-0 z-10 flex flex-wrap gap-2 border-b border-zinc-800/80 bg-[var(--surface)] pb-3 pt-1"
@@ -226,7 +318,8 @@ export function InstructorDocumentUploads({ instructorId }: Props) {
             {section.title}
           </h3>
           <p className="mt-1 text-xs text-zinc-500">
-            Provider and instructor documents with optional expiration dates.
+            Google Form submissions mapped to this program appear in each log below.
+            Portal-only expiration dates apply to manual uploads.
           </p>
           <div className="mt-5 space-y-5">
             {section.items.map(({ key, label }) => {
@@ -268,8 +361,8 @@ export function InstructorDocumentUploads({ instructorId }: Props) {
                         <span className="text-xs">{expirationBadge(exp)}</span>
                       </div>
                     </div>
-                    <label className="shrink-0 cursor-pointer rounded-lg border border-red-800/60 bg-red-950/40 px-3 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-950/70">
-                      {busyKey === key ? "Uploading…" : "Upload"}
+                    <label className="shrink-0 cursor-pointer rounded-lg border border-zinc-600 bg-zinc-900/80 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-zinc-500 hover:text-white">
+                      {busyKey === key ? "Uploading…" : "Manual upload"}
                       <input
                         type="file"
                         className="sr-only"
@@ -283,10 +376,113 @@ export function InstructorDocumentUploads({ instructorId }: Props) {
                       />
                     </label>
                   </div>
+                  <FormSubmissionLog
+                    entries={formSubmissionsByCategory[key] ?? []}
+                    heading="Google Form log (this document type)"
+                  />
                   {list.length === 0 ? (
-                    <p className="mt-3 text-xs text-zinc-600">No files yet.</p>
+                    <p className="mt-3 text-xs text-zinc-600">
+                      No manual portal uploads.
+                    </p>
                   ) : (
-                    <ul className="mt-3 space-y-2 text-xs">
+                    <>
+                      <p className="mt-3 text-xs font-medium text-zinc-500">
+                        Manual portal uploads
+                      </p>
+                      <ul className="mt-2 space-y-2 text-xs">
+                        {list.map((entry) => (
+                          <li
+                            key={entry.id}
+                            className="flex flex-wrap items-start justify-between gap-2 border-t border-zinc-800/80 pt-2 first:border-t-0 first:pt-0"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <a
+                                href={downloadHref(entry.id)}
+                                className="break-all text-red-400/95 hover:text-red-300"
+                              >
+                                {entry.originalName}
+                              </a>
+                              <span className="mt-0.5 block text-zinc-500">
+                                {new Date(entry.uploadedAt).toLocaleString()}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              disabled={busyKey !== null || deletingId !== null}
+                              onClick={() =>
+                                void onDelete(entry.id, entry.originalName)
+                              }
+                              className="shrink-0 rounded border border-zinc-600 bg-zinc-900 px-2 py-1 text-[11px] font-medium text-zinc-300 transition hover:border-red-800/60 hover:bg-red-950/50 hover:text-red-200 disabled:opacity-50"
+                            >
+                              {deletingId === entry.id ? "Deleting…" : "Delete"}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+
+      <section
+        id="instructor-docs-other"
+        className="scroll-mt-28 rounded-xl border border-zinc-800/90 bg-zinc-950/30 p-5"
+      >
+        <h3 className="text-base font-semibold text-white">Other documents</h3>
+        <p className="mt-1 text-xs text-zinc-500">
+          Agreements, monitoring, applications, and paperwork log — plus form
+          submissions that could not be matched to a category above.
+        </p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          {INSTRUCTOR_UPLOAD_OTHER.map(({ key, label, isLog }) => {
+            const list = uploads[key] ?? [];
+            return (
+              <div
+                key={key}
+                className="rounded-lg border border-zinc-800/90 bg-zinc-950/50 p-4"
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h4 className="text-sm font-medium text-white">{label}</h4>
+                    {isLog ? (
+                      <p className="mt-0.5 text-xs text-zinc-500">
+                        Multiple files allowed (newest last).
+                      </p>
+                    ) : null}
+                  </div>
+                  <label className="shrink-0 cursor-pointer rounded-lg border border-zinc-600 bg-zinc-900/80 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-zinc-500 hover:text-white">
+                    {busyKey === key ? "Uploading…" : "Manual upload"}
+                    <input
+                      type="file"
+                      className="sr-only"
+                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,application/pdf,image/*"
+                      disabled={busyKey !== null || deletingId !== null}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        e.target.value = "";
+                        void onUpload(key, f);
+                      }}
+                    />
+                  </label>
+                </div>
+                <FormSubmissionLog
+                  entries={formSubmissionsByCategory[key] ?? []}
+                  heading="Google Form log (this document type)"
+                />
+                {list.length === 0 ? (
+                  <p className="mt-3 text-xs text-zinc-600">
+                    No manual portal uploads.
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-3 text-xs font-medium text-zinc-500">
+                      Manual portal uploads
+                    </p>
+                    <ul className="mt-2 space-y-2 text-xs">
                       {list.map((entry) => (
                         <li
                           key={entry.id}
@@ -316,92 +512,26 @@ export function InstructorDocumentUploads({ instructorId }: Props) {
                         </li>
                       ))}
                     </ul>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      ))}
-
-      <section
-        id="instructor-docs-other"
-        className="scroll-mt-28 rounded-xl border border-zinc-800/90 bg-zinc-950/30 p-5"
-      >
-        <h3 className="text-base font-semibold text-white">Other documents</h3>
-        <p className="mt-1 text-xs text-zinc-500">
-          Agreements, monitoring, applications, and paperwork log.
-        </p>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          {INSTRUCTOR_UPLOAD_OTHER.map(({ key, label, isLog }) => {
-            const list = uploads[key] ?? [];
-            return (
-              <div
-                key={key}
-                className="rounded-lg border border-zinc-800/90 bg-zinc-950/50 p-4"
-              >
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <h4 className="text-sm font-medium text-white">{label}</h4>
-                    {isLog ? (
-                      <p className="mt-0.5 text-xs text-zinc-500">
-                        Multiple files allowed (newest last).
-                      </p>
-                    ) : null}
-                  </div>
-                  <label className="shrink-0 cursor-pointer rounded-lg border border-red-800/60 bg-red-950/40 px-3 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-950/70">
-                    {busyKey === key ? "Uploading…" : "Upload"}
-                    <input
-                      type="file"
-                      className="sr-only"
-                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,application/pdf,image/*"
-                      disabled={busyKey !== null || deletingId !== null}
-                      onChange={(e) => {
-                        const f = e.target.files?.[0] ?? null;
-                        e.target.value = "";
-                        void onUpload(key, f);
-                      }}
-                    />
-                  </label>
-                </div>
-                {list.length === 0 ? (
-                  <p className="mt-3 text-xs text-zinc-600">No files yet.</p>
-                ) : (
-                  <ul className="mt-3 space-y-2 text-xs">
-                    {list.map((entry) => (
-                      <li
-                        key={entry.id}
-                        className="flex flex-wrap items-start justify-between gap-2 border-t border-zinc-800/80 pt-2 first:border-t-0 first:pt-0"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <a
-                            href={downloadHref(entry.id)}
-                            className="break-all text-red-400/95 hover:text-red-300"
-                          >
-                            {entry.originalName}
-                          </a>
-                          <span className="mt-0.5 block text-zinc-500">
-                            {new Date(entry.uploadedAt).toLocaleString()}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          disabled={busyKey !== null || deletingId !== null}
-                          onClick={() =>
-                            void onDelete(entry.id, entry.originalName)
-                          }
-                          className="shrink-0 rounded border border-zinc-600 bg-zinc-900 px-2 py-1 text-[11px] font-medium text-zinc-300 transition hover:border-red-800/60 hover:bg-red-950/50 hover:text-red-200 disabled:opacity-50"
-                        >
-                          {deletingId === entry.id ? "Deleting…" : "Delete"}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  </>
                 )}
               </div>
             );
           })}
         </div>
+
+        {formSubmissionsUnmapped.length > 0 ? (
+          <div className="mt-6 rounded-lg border border-amber-900/40 bg-amber-950/15 p-4">
+            <h4 className="text-sm font-semibold text-amber-200/95">
+              Form submissions — unmapped document type
+            </h4>
+            <p className="mt-1 text-xs text-zinc-500">
+              These rows matched this instructor but the Document Type text did not
+              match a folder above. Adjust the form options or ask your admin to
+              extend the type map.
+            </p>
+            <FormSubmissionLog entries={formSubmissionsUnmapped} heading={null} />
+          </div>
+        ) : null}
       </section>
     </div>
   );
