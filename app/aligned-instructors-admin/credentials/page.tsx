@@ -14,6 +14,9 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const AHA_ALIGNMENT_CANDIDATE_FORM_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSeC7BaE2qY2uTWbIuNkWqNH2Cux9Xipx9Qequw4jPoK1tTEWw/viewform?usp=dialog";
+
 type CandidateSummary = {
   normalizedKey: string;
   firstName: string;
@@ -96,11 +99,21 @@ export default async function AlignedInstructorsCredentialsPage() {
           Candidate submissions from the configured source. Open a candidate for full
           detail. Removing a row here only hides it in the portal.
         </p>
-        {fetchedAt ? (
-          <p className="mt-3 text-xs text-zinc-500">
-            Data refreshed {new Date(fetchedAt).toLocaleString()}
-          </p>
-        ) : null}
+        <p className="mt-4 flex flex-wrap items-center gap-3">
+          <a
+            href={AHA_ALIGNMENT_CANDIDATE_FORM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex rounded-lg border border-red-700/50 bg-red-950/40 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-950/70"
+          >
+            New candidate application (Google Form)
+          </a>
+          {fetchedAt ? (
+            <span className="text-xs text-zinc-500">
+              Data refreshed {new Date(fetchedAt).toLocaleString()}
+            </span>
+          ) : null}
+        </p>
       </div>
 
       {loadError ? (
