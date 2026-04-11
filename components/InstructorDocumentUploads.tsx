@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   INSTRUCTOR_UPLOAD_OTHER,
   INSTRUCTOR_UPLOAD_SECTIONS,
@@ -8,7 +10,11 @@ import type { InstructorFormSubmission } from "@/lib/instructor-form-submissions
 import { INSTRUCTOR_DOCUMENT_GOOGLE_FORM_URL } from "@/lib/instructor-upload-form";
 import type { InstructorUploadCategory } from "@/lib/instructor-uploads-store";
 
+const HIDDEN_IDS_STORAGE_PREFIX = "meti-instructor-form-hidden-v1:";
+
 type Props = {
+  /** URL segment or other stable id — scopes local “hidden” submissions in localStorage */
+  instructorStorageId: string;
   /** Submissions from the Google Form / sheet tab, grouped by mapped document type */
   formSubmissionsByCategory?: Partial<
     Record<InstructorUploadCategory, InstructorFormSubmission[]>
@@ -89,9 +95,11 @@ function ExpirationStatus({ raw }: { raw: string }) {
 function FormSubmissionLog({
   entries,
   heading,
+  onRemoveFromList,
 }: {
   entries: InstructorFormSubmission[];
   heading?: string | null;
+  onRemoveFromList?: (id: string) => void;
 }) {
   if (entries.length === 0) return null;
   return (
@@ -114,14 +122,26 @@ function FormSubmissionLog({
             className="rounded-md border border-zinc-800/60 bg-black/20 px-3 py-2"
           >
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <a
-                href={s.documentUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-red-400/95 hover:text-red-300"
-              >
-                Open document
-              </a>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <a
+                  href={s.documentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-red-400/95 hover:text-red-300"
+                >
+                  Open document
+                </a>
+                {onRemoveFromList ? (
+                  <button
+                    type="button"
+                    onClick={() => onRemoveFromList(s.id)}
+                    className="text-zinc-500 underline decoration-zinc-600 underline-offset-2 hover:text-zinc-300"
+                    title="Hides this row in your browser only. It does not delete the Google Sheet row."
+                  >
+                    Remove from list
+                  </button>
+                ) : null}
+              </div>
               <span className="text-zinc-500">
                 {formatFormTimestamp(s.timestamp)}
               </span>
@@ -144,27 +164,109 @@ function FormSubmissionLog({
   );
 }
 
+function filterHiddenFromCategory(
+  byCategory: Partial<
+    Record<InstructorUploadCategory, InstructorFormSubmission[]>
+  >,
+  hidden: Set<string>,
+): Partial<Record<InstructorUploadCategory, InstructorFormSubmission[]>> {
+  if (hidden.size === 0) return byCategory;
+  const out: Partial<
+    Record<InstructorUploadCategory, InstructorFormSubmission[]>
+  > = {};
+  for (const [key, list] of Object.entries(byCategory) as [
+    InstructorUploadCategory,
+    InstructorFormSubmission[],
+  ][]) {
+    if (!list?.length) continue;
+    const filtered = list.filter((s) => !hidden.has(s.id));
+    if (filtered.length > 0) out[key] = filtered;
+  }
+  return out;
+}
+
 export function InstructorDocumentUploads({
+  instructorStorageId,
   formSubmissionsByCategory = {},
   formSubmissionsUnmapped = [],
 }: Props) {
+  const router = useRouter();
+  const storageKey = `${HIDDEN_IDS_STORAGE_PREFIX}${instructorStorageId}`;
+  const [hiddenIds, setHiddenIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return;
+      setHiddenIds(
+        parsed.filter((x): x is string => typeof x === "string" && x.length > 0),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [storageKey]);
+
+  const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds]);
+
+  const hideSubmission = useCallback(
+    (id: string) => {
+      setHiddenIds((prev) => {
+        if (prev.includes(id)) return prev;
+        const next = [...prev, id];
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(next));
+        } catch {
+          /* ignore */
+        }
+        return next;
+      });
+    },
+    [storageKey],
+  );
+
+  const visibleByCategory = useMemo(
+    () => filterHiddenFromCategory(formSubmissionsByCategory, hiddenSet),
+    [formSubmissionsByCategory, hiddenSet],
+  );
+  const visibleUnmapped = useMemo(
+    () => formSubmissionsUnmapped.filter((s) => !hiddenSet.has(s.id)),
+    [formSubmissionsUnmapped, hiddenSet],
+  );
+
   return (
     <div className="space-y-8">
-      <p className="rounded-lg border border-emerald-900/35 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-100/90">
-        Documents are submitted through the{" "}
-        <a
-          href={INSTRUCTOR_DOCUMENT_GOOGLE_FORM_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-medium text-red-400 underline hover:text-red-300"
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <p className="flex-1 rounded-lg border border-emerald-900/35 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-100/90">
+          Documents are submitted through the{" "}
+          <a
+            href={INSTRUCTOR_DOCUMENT_GOOGLE_FORM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-red-400 underline hover:text-red-300"
+          >
+            Google Form
+          </a>
+          . Entries below are loaded from the responses sheet (newest first),
+          with a fresh read when you open or refresh this page. Deleting a row in
+          the sheet removes it here after you use{" "}
+          <span className="font-medium text-emerald-200">Refresh from sheet</span>{" "}
+          or reload.{" "}
+          <span className="font-medium text-emerald-200">Remove from list</span>{" "}
+          only hides a row in this browser; it does not change the spreadsheet.
+          For BLS / ACLS / PALS credentials, expiration reflects the{" "}
+          <span className="font-medium text-emerald-200">most recent</span> filing
+          for that document type.
+        </p>
+        <button
+          type="button"
+          onClick={() => router.refresh()}
+          className="shrink-0 rounded-lg border border-zinc-600 bg-zinc-900/80 px-3 py-2 text-xs font-medium text-zinc-200 hover:border-red-800/50 hover:text-white"
         >
-          Google Form
-        </a>
-        . Entries below are from the responses sheet, newest first. For BLS /
-        ACLS / PALS credentials, expiration reflects the{" "}
-        <span className="font-medium text-emerald-200">most recent</span> filing
-        for that document type.
-      </p>
+          Refresh from sheet
+        </button>
+      </div>
 
       <nav
         aria-label="Document sections"
@@ -196,7 +298,7 @@ export function InstructorDocumentUploads({
           </p>
           <div className="mt-5 space-y-5">
             {section.items.map(({ key, label }) => {
-              const formList = formSubmissionsByCategory[key] ?? [];
+              const formList = visibleByCategory[key] ?? [];
               const latest = formList[0];
               const latestExp = latest?.expirationDate?.trim() ?? "";
 
@@ -227,6 +329,7 @@ export function InstructorDocumentUploads({
                     <FormSubmissionLog
                       entries={formList}
                       heading="Submission log"
+                      onRemoveFromList={hideSubmission}
                     />
                   )}
                 </div>
@@ -247,7 +350,7 @@ export function InstructorDocumentUploads({
         </p>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           {INSTRUCTOR_UPLOAD_OTHER.map(({ key, label }) => {
-            const formList = formSubmissionsByCategory[key] ?? [];
+            const formList = visibleByCategory[key] ?? [];
             return (
               <div
                 key={key}
@@ -262,6 +365,7 @@ export function InstructorDocumentUploads({
                   <FormSubmissionLog
                     entries={formList}
                     heading="Submission log"
+                    onRemoveFromList={hideSubmission}
                   />
                 )}
               </div>
@@ -269,7 +373,7 @@ export function InstructorDocumentUploads({
           })}
         </div>
 
-        {formSubmissionsUnmapped.length > 0 ? (
+        {visibleUnmapped.length > 0 ? (
           <div className="mt-6 rounded-lg border border-amber-900/40 bg-amber-950/15 p-4">
             <h4 className="text-sm font-semibold text-amber-200/95">
               Form submissions — unmapped document type
@@ -279,7 +383,11 @@ export function InstructorDocumentUploads({
               not match a folder above. Adjust the form options or extend the
               type map in code.
             </p>
-            <FormSubmissionLog entries={formSubmissionsUnmapped} heading={null} />
+            <FormSubmissionLog
+              entries={visibleUnmapped}
+              heading={null}
+              onRemoveFromList={hideSubmission}
+            />
           </div>
         ) : null}
       </section>

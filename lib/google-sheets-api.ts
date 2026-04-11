@@ -54,10 +54,26 @@ function escapeA1SheetTitle(title: string): string {
   return `'${title.replace(/'/g, "''")}'`;
 }
 
+type SheetFetchMode = { live?: boolean };
+
+function fetchInitForSheets(live?: boolean): RequestInit {
+  if (live) {
+    return {
+      cache: "no-store",
+      headers: { "User-Agent": "METI-Audit-Portal/1.0" },
+    };
+  }
+  return {
+    next: { revalidate: 60 },
+    headers: { "User-Agent": "METI-Audit-Portal/1.0" },
+  };
+}
+
 async function getSheetTitleByGid(
   spreadsheetId: string,
   gid: string,
   apiKey: string,
+  mode?: SheetFetchMode,
 ): Promise<string> {
   const url = new URL(
     `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}`,
@@ -65,10 +81,7 @@ async function getSheetTitleByGid(
   url.searchParams.set("fields", "sheets(properties(sheetId,title))");
   url.searchParams.set("key", apiKey);
 
-  const res = await fetch(url.toString(), {
-    next: { revalidate: 60 },
-    headers: { "User-Agent": "METI-Audit-Portal/1.0" },
-  });
+  const res = await fetch(url.toString(), fetchInitForSheets(mode?.live));
   if (!res.ok) {
     throw new Error(
       `Sheets metadata failed (${res.status}). Check GOOGLE_SHEETS_API_KEY and API access.`,
@@ -99,8 +112,9 @@ export async function fetchSheetGridOmittingHiddenRows(
   spreadsheetId: string,
   gid: string,
   apiKey: string,
+  mode?: SheetFetchMode,
 ): Promise<{ table: string[][]; sourceUrl: string }> {
-  const title = await getSheetTitleByGid(spreadsheetId, gid, apiKey);
+  const title = await getSheetTitleByGid(spreadsheetId, gid, apiKey, mode);
   const range = `${escapeA1SheetTitle(title)}!A:ZZ`;
   const url = new URL(
     `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}`,
@@ -113,10 +127,7 @@ export async function fetchSheetGridOmittingHiddenRows(
   );
   url.searchParams.set("key", apiKey);
 
-  const res = await fetch(url.toString(), {
-    next: { revalidate: 60 },
-    headers: { "User-Agent": "METI-Audit-Portal/1.0" },
-  });
+  const res = await fetch(url.toString(), fetchInitForSheets(mode?.live));
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
     throw new Error(

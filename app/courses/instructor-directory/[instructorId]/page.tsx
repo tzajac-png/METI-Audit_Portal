@@ -156,6 +156,7 @@ export default async function InstructorDirectoryDetailPage({ params }: Props) {
         </p>
         <div className="mt-6">
           <InstructorDocumentUploads
+            instructorStorageId={segment}
             formSubmissionsByCategory={formSubmissionsByCategory}
             formSubmissionsUnmapped={formSubmissionsUnmapped}
           />

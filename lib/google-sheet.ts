@@ -68,7 +68,10 @@ const CSV_FALLBACK_ENV = "GOOGLE_SHEETS_ALLOW_CSV_FALLBACK";
  * For local testing without a key, set `GOOGLE_SHEETS_ALLOW_CSV_FALLBACK=true`
  * (hidden data may still appear in the portal).
  */
-export async function fetchSheetTable(gid: string): Promise<{
+export async function fetchSheetTable(
+  gid: string,
+  options?: { live?: boolean },
+): Promise<{
   headers: string[];
   rows: Record<string, string>[];
   rawRowCells: string[][];
@@ -80,11 +83,22 @@ export async function fetchSheetTable(gid: string): Promise<{
     process.env[CSV_FALLBACK_ENV]?.trim() === "true" ||
     process.env[CSV_FALLBACK_ENV]?.trim() === "1";
 
+  const fetchInit: RequestInit = options?.live
+    ? {
+        cache: "no-store",
+        headers: { "User-Agent": "METI-Audit-Portal/1.0" },
+      }
+    : {
+        next: { revalidate: 60 },
+        headers: { "User-Agent": "METI-Audit-Portal/1.0" },
+      };
+
   if (apiKey) {
     const { table, sourceUrl } = await fetchSheetGridOmittingHiddenRows(
       sheetId,
       gid,
       apiKey,
+      options?.live ? { live: true } : undefined,
     );
     return buildTableFromRows(table, sourceUrl);
   }
@@ -98,10 +112,7 @@ export async function fetchSheetTable(gid: string): Promise<{
 
   const url = buildExportUrl(sheetId, gid);
 
-  const res = await fetch(url, {
-    next: { revalidate: 60 },
-    headers: { "User-Agent": "METI-Audit-Portal/1.0" },
-  });
+  const res = await fetch(url, fetchInit);
 
   if (!res.ok) {
     throw new Error(

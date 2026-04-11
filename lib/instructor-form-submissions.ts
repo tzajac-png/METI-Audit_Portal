@@ -150,7 +150,9 @@ export async function fetchInstructorFormSubmissions(): Promise<{
   const gid =
     process.env.GOOGLE_SHEET_GID_INSTRUCTOR_UPLOAD_FORM?.trim() ??
     DEFAULT_GID_INSTRUCTOR_UPLOAD_FORM;
-  const { headers, rawRowCells, sourceUrl } = await fetchSheetTable(gid);
+  const { headers, rawRowCells, sourceUrl } = await fetchSheetTable(gid, {
+    live: true,
+  });
   const col = resolveColumns(headers);
   const submissions: InstructorFormSubmission[] = [];
 

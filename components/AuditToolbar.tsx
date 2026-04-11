@@ -17,10 +17,18 @@ export function AuditToolbar() {
   }
 
   const link = (href: string, label: string) => {
-    const active =
-      href === "/audit/courses"
-        ? pathname === href || pathname.startsWith("/audit/courses/")
-        : pathname === href;
+    const certPath = "/audit/courses/instructor-certifications";
+    let active = false;
+    if (href === "/audit/courses") {
+      active =
+        pathname === "/audit/courses" ||
+        (pathname.startsWith("/audit/courses/") &&
+          !pathname.startsWith(certPath));
+    } else if (href === certPath) {
+      active = pathname.startsWith(certPath);
+    } else {
+      active = pathname === href;
+    }
     return (
       <Link
         href={href}
@@ -43,6 +51,10 @@ export function AuditToolbar() {
         </p>
         <nav className="flex flex-wrap gap-4 border-l border-zinc-800 pl-4">
           {link("/audit/courses", "Course audits")}
+          {link(
+            "/audit/courses/instructor-certifications",
+            "Instructor certifications",
+          )}
         </nav>
       </div>
       <button
