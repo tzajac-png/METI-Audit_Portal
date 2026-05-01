@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { BlsCourseDetail } from "@/components/BlsCourseDetail";
 import { getAuditDisplayStatus } from "@/lib/audit-status";
 import { getBlsCourseByCode } from "@/lib/bls-courses";
+import { safeDecodePathSegment } from "@/lib/safe-decode-path-segment";
 import {
   fetchStudentRows,
   filterStudentsByCourseCode,
@@ -15,12 +16,7 @@ type Props = {
 
 export default async function BlsCourseDetailPage({ params }: Props) {
   const { code: encoded } = await params;
-  let courseCode: string;
-  try {
-    courseCode = decodeURIComponent(encoded);
-  } catch {
-    notFound();
-  }
+  const courseCode = safeDecodePathSegment(encoded ?? "");
 
   const course = await getBlsCourseByCode(courseCode);
   if (!course) notFound();

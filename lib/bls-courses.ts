@@ -26,5 +26,5 @@ export async function getBlsCourseByCode(
 ): Promise<BlsCourseSummary | null> {
   const { courses } = await fetchBlsCourseSummaries();
   const normalized = courseCode.trim();
-  return courses.find((c) => c.courseCode === normalized) ?? null;
+  return courses.find((c) => c.courseCode.trim() === normalized) ?? null;
 }

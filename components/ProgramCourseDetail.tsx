@@ -121,7 +121,7 @@ export function ProgramCourseDetail({
       <section className="flex flex-wrap items-center gap-3">
         <ExportClassPdfButton
           programTitle={programTitle}
-          courseCode={course.courseCode}
+          courseCode={course.courseCode.trim()}
           courseDocumentUrl={course.courseDocumentUrl?.trim() || null}
           dateLabel={course.dateLabel}
           leadInstructor={course.leadInstructor}
@@ -223,7 +223,7 @@ export function ProgramCourseDetail({
                   const first = s["First Name"] ?? "";
                   const last = s["Last Name"] ?? "";
                   const name = [first, last].filter(Boolean).join(" ") || "—";
-                  const studentHref = `${basePath}/${encodeURIComponent(course.courseCode)}/students/${encodeURIComponent(s._rowId)}`;
+                  const studentHref = `${basePath}/${encodeURIComponent(course.courseCode.trim())}/students/${encodeURIComponent(s._rowId)}`;
                   return (
                     <tr key={s._rowId} className="text-zinc-300">
                       <td className="py-2.5 pr-4">
@@ -254,7 +254,7 @@ export function ProgramCourseDetail({
       <p className="text-xs text-zinc-500">
         To submit or update a formal audit for this class, sign in and open{" "}
         <Link
-          href={`/audit/courses/new?courseCode=${encodeURIComponent(course.courseCode)}`}
+          href={`/audit/courses/new?courseCode=${encodeURIComponent(course.courseCode.trim())}`}
           className="text-red-400 hover:text-red-300"
         >
           New audit (prefilled)

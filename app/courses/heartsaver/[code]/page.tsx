@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { ProgramCourseDetail } from "@/components/ProgramCourseDetail";
 import { getAuditDisplayStatus } from "@/lib/audit-status";
 import { getProgramCourseByCode } from "@/lib/program-courses";
+import { safeDecodePathSegment } from "@/lib/safe-decode-path-segment";
 import {
   fetchStudentRowsForCourseType,
   filterStudentsByCourseCode,
@@ -15,12 +16,7 @@ type Props = {
 
 export default async function HeartsaverCourseDetailPage({ params }: Props) {
   const { code: encoded } = await params;
-  let courseCode: string;
-  try {
-    courseCode = decodeURIComponent(encoded);
-  } catch {
-    notFound();
-  }
+  const courseCode = safeDecodePathSegment(encoded ?? "");
 
   const course = await getProgramCourseByCode("Heartsaver", courseCode);
   if (!course) notFound();

@@ -100,7 +100,7 @@ export function ProgramCourseList({
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right">
                         <Link
-                          href={`${basePath}/${encodeURIComponent(c.courseCode)}`}
+                          href={`${basePath}/${encodeURIComponent(c.courseCode.trim())}`}
                           className="font-medium text-red-400 hover:text-red-300"
                         >
                           View

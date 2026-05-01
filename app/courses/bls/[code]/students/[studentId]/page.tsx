@@ -7,6 +7,7 @@ import {
   filterStudentsByCourseCode,
   findStudentByRowId,
 } from "@/lib/student-roster";
+import { safeDecodePathSegment } from "@/lib/safe-decode-path-segment";
 
 export const dynamic = "force-dynamic";
 
@@ -17,14 +18,8 @@ type Props = {
 export default async function BlsStudentDetailPage({ params }: Props) {
   const { code: encodedCode, studentId: encodedStudentId } = await params;
 
-  let courseCode: string;
-  let studentRowId: string;
-  try {
-    courseCode = decodeURIComponent(encodedCode);
-    studentRowId = decodeURIComponent(encodedStudentId);
-  } catch {
-    notFound();
-  }
+  const courseCode = safeDecodePathSegment(encodedCode ?? "");
+  const studentRowId = safeDecodePathSegment(encodedStudentId ?? "");
 
   const course = await getBlsCourseByCode(courseCode);
   if (!course) notFound();
