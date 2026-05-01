@@ -9,7 +9,13 @@ export function metiRedRgbTuple(): [number, number, number] {
   return [r, g, b];
 }
 
-/** Light tint on white for PDF panels (same hue family). */
+/** Light panel background: blend logo red toward white (same red hue as METI_LOGO_RED_RGB). */
 export function metiRedTintRgbTuple(): [number, number, number] {
-  return [255, 242, 241];
+  const { r, g, b } = METI_LOGO_RED_RGB;
+  const t = 0.88;
+  return [
+    Math.round(255 * t + r * (1 - t)),
+    Math.round(255 * t + g * (1 - t)),
+    Math.round(255 * t + b * (1 - t)),
+  ];
 }

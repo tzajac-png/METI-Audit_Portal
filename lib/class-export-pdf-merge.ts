@@ -275,7 +275,8 @@ async function buildRosterPdfBytes(
       3: { cellWidth: 18 },
       4: { cellWidth: "auto" },
     },
-    willDrawPage: () => {
+    willDrawPage: (data) => {
+      if (data.pageNumber !== 1) return;
       if (!logoBytesRoster?.length || logoRw <= 0) return;
       try {
         doc.addImage(
@@ -349,8 +350,8 @@ export async function buildClassExportMergedPdf(
   if (logoBytes) {
     try {
       const logo = await merged.embedPng(logoBytes);
-      const maxLogoW = Math.min(248, innerW * 0.62);
-      const maxLogoH = 66;
+      const maxLogoW = Math.min(320, innerW * 0.78);
+      const maxLogoH = 88;
       const scale = Math.min(maxLogoW / logo.width, maxLogoH / logo.height);
       logoWDrawn = logo.width * scale;
       logoHDrawn = logo.height * scale;
