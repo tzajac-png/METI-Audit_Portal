@@ -46,23 +46,6 @@ export type ClassExportMergeInput = {
 
 const LETTER = { w: 612, h: 792 } as const;
 
-/** IHDR width/height for PDF layout when embedding the same bytes in jsPDF. */
-function readPngDimensions(bytes: Uint8Array): { w: number; h: number } | null {
-  if (bytes.length < 32) return null;
-  const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-  for (let i = 0; i < 8; i++) {
-    if (bytes[i] !== sig[i]) return null;
-  }
-  const w =
-    (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
-  const h =
-    (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
-  if (!Number.isFinite(w) || !Number.isFinite(h) || w < 1 || h < 1 || h > 16000) {
-    return null;
-  }
-  return { w, h };
-}
-
 function wrapLinesToPdfWidth(
   text: string,
   font: PDFFont,
@@ -142,20 +125,6 @@ function wrapLines(text: string, maxChars: number): string[] {
   return lines;
 }
 
-async function fetchLogoPngBytes(): Promise<Uint8Array | null> {
-  try {
-    const base =
-      typeof window !== "undefined" ? window.location.origin : "";
-    const res = await fetch(`${base}/images/meti-class-export-logo.png`, {
-      cache: "force-cache",
-    });
-    if (!res.ok) return null;
-    return new Uint8Array(await res.arrayBuffer());
-  } catch {
-    return null;
-  }
-}
-
 export async function fetchCoursePdfBytesForExport(
   url: string | null,
 ): Promise<Uint8Array | null> {
@@ -181,28 +150,7 @@ async function buildRosterPdfBytes(
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 16;
-  const logoBytesRoster = await fetchLogoPngBytes();
-
-  let logoRw = 0;
-  let logoRh = 0;
-  if (logoBytesRoster?.length) {
-    const dim = readPngDimensions(logoBytesRoster);
-    const maxLw = 115;
-    const maxLh = 44;
-    if (dim) {
-      const sc = Math.min(maxLw / dim.w, maxLh / dim.h);
-      logoRw = dim.w * sc;
-      logoRh = dim.h * sc;
-    } else {
-      logoRw = maxLw;
-      logoRh = maxLh * 0.48;
-    }
-  }
-
-  const headerTextW = Math.max(
-    72,
-    pageW - margin * 2 - (logoRw > 0 ? logoRw + 10 : 0),
-  );
+  const headerTextW = pageW - margin * 2;
   const BLACK: [number, number, number] = [18, 18, 22];
   const GRAY: [number, number, number] = [88, 88, 92];
 
@@ -210,8 +158,7 @@ async function buildRosterPdfBytes(
 
   doc.setDrawColor(...redTuple);
   doc.setLineWidth(0.6);
-  const lineEndX = logoRw > 0 ? pageW - margin - logoRw - 8 : pageW - margin;
-  doc.line(margin, y, lineEndX, y);
+  doc.line(margin, y, pageW - margin, y);
   y += 10;
 
   doc.setTextColor(...redTuple);
@@ -275,22 +222,6 @@ async function buildRosterPdfBytes(
       3: { cellWidth: 18 },
       4: { cellWidth: "auto" },
     },
-    willDrawPage: (data) => {
-      if (data.pageNumber !== 1) return;
-      if (!logoBytesRoster?.length || logoRw <= 0) return;
-      try {
-        doc.addImage(
-          logoBytesRoster,
-          "PNG",
-          pageW - margin - logoRw,
-          margin,
-          logoRw,
-          logoRh,
-        );
-      } catch {
-        /* invalid image for jsPDF */
-      }
-    },
   });
 
   const docExt = doc as typeof doc & { lastAutoTable?: { finalY: number } };
@@ -304,7 +235,7 @@ async function buildRosterPdfBytes(
   doc.setTextColor(...GRAY);
   const footNoteW = pageW - margin * 2;
   const foot2 = doc.splitTextToSize(
-    "Roster reflects METI portal data at export time. The course packet begins on page 1 of this file when embedded successfully.",
+    "Roster reflects course data at export time. The course packet begins on page 1 of this file when embedded successfully.",
     footNoteW,
   );
   doc.text(foot2, margin, footY);
@@ -342,58 +273,9 @@ export async function buildClassExportMergedPdf(
   const helv = await merged.embedFont(StandardFonts.Helvetica);
   const helvBold = await merged.embedFont(StandardFonts.HelveticaBold);
 
-  const logoBytes = await fetchLogoPngBytes();
-  let headerBottomFromTop = margin;
-  let logoWDrawn = 0;
-  let logoHDrawn = 0;
-
-  if (logoBytes) {
-    try {
-      const logo = await merged.embedPng(logoBytes);
-      const maxLogoW = Math.min(320, innerW * 0.78);
-      const maxLogoH = 88;
-      const scale = Math.min(maxLogoW / logo.width, maxLogoH / logo.height);
-      logoWDrawn = logo.width * scale;
-      logoHDrawn = logo.height * scale;
-      const xRight = pageW - margin - logoWDrawn;
-      const yBottom = pageH - margin - logoHDrawn;
-      page.drawImage(logo, {
-        x: xRight,
-        y: yBottom,
-        width: logoWDrawn,
-        height: logoHDrawn,
-      });
-      headerBottomFromTop = Math.max(
-        headerBottomFromTop,
-        margin + logoHDrawn + 14,
-      );
-    } catch {
-      logoWDrawn = 0;
-      logoHDrawn = 0;
-    }
-  }
-  if (headerBottomFromTop === margin) {
-    page.drawText(sanitizeForPdfStandardFont("METI"), {
-      x: pageW - margin - 72,
-      y: pageH - margin - 14,
-      size: 14,
-      font: helvBold,
-      color: redRgb,
-    });
-    page.drawText(sanitizeForPdfStandardFont("Michigan Emergency Training Institute"), {
-      x: pageW - margin - 140,
-      y: pageH - margin - 6,
-      size: 7,
-      font: helv,
-      color: blackRgb,
-    });
-    headerBottomFromTop = margin + 36;
-  }
-
-  const textRight =
-    pageW - margin - (logoWDrawn > 0 ? logoWDrawn + 18 : 0);
-  const textAreaW = Math.max(176, textRight - margin);
-  const lineEndX = logoWDrawn > 0 ? textRight : pageW - margin;
+  const headerBottomFromTop = margin;
+  const textAreaW = innerW;
+  const lineEndX = pageW - margin;
 
   const lineY = pageH - headerBottomFromTop;
   page.drawLine({
@@ -597,7 +479,7 @@ export async function buildClassExportMergedPdf(
 
   const footLines = wrapLinesToPdfWidth(
     sanitizeForPdfStandardFont(
-      `Exported ${new Date().toLocaleString()} - Page 1: METI cover and course packet when available. Student roster follows.`,
+      `Exported ${new Date().toLocaleString()} - Page 1: cover and course packet when available. Student roster follows.`,
     ),
     helv,
     7.5,
