@@ -6,6 +6,7 @@ import {
   metiRedRgbTuple,
   metiRedTintRgbTuple,
 } from "@/lib/meti-export-brand";
+import { flattenPdfAcroFormBytes } from "@/lib/course-pdf-form-flatten";
 import { sanitizeForPdfStandardFont } from "@/lib/pdf-text-safe";
 
 function safeInputForPdf(input: ClassExportMergeInput): ClassExportMergeInput {
@@ -417,12 +418,15 @@ export async function buildClassExportMergedPdf(
 
   if (coursePdfBytes && embedAvailable > 80) {
     try {
-      const donor = await PDFDocument.load(coursePdfBytes);
+      const embedBytes = await flattenPdfAcroFormBytes(coursePdfBytes);
+      const donor = await PDFDocument.load(embedBytes, {
+        ignoreEncryption: true,
+      });
       const donorCount = donor.getPageCount();
       const p0 = donor.getPage(0);
       const iw = p0.getWidth();
       const ih = p0.getHeight();
-      const [ep] = await merged.embedPdf(coursePdfBytes, [0]);
+      const [ep] = await merged.embedPdf(embedBytes, [0]);
       const boxW = textAreaW;
       const boxPdfH = embedAvailable;
       const scale = Math.min(boxW / iw, boxPdfH / ih);

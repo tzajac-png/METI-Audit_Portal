@@ -3,6 +3,7 @@ import {
   isAllowedCourseDocumentHost,
   normalizeCourseDocumentFetchUrl,
 } from "@/lib/course-document-pdf-url";
+import { flattenPdfAcroFormBytes } from "@/lib/course-pdf-form-flatten";
 
 export const runtime = "nodejs";
 
@@ -68,7 +69,10 @@ export async function POST(req: Request) {
     );
   }
 
-  return new NextResponse(buf, {
+  const raw = new Uint8Array(buf);
+  const normalized = await flattenPdfAcroFormBytes(raw);
+
+  return new NextResponse(Buffer.from(normalized), {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
