@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { AuditDisplayStatus } from "@/lib/audit-status";
+import { ExportClassPdfButton } from "@/components/ExportClassPdfButton";
 import type { ProgramCourseSummary } from "@/lib/program-courses";
 import type { StudentRow } from "@/lib/student-roster";
 
@@ -117,8 +118,29 @@ export function ProgramCourseDetail({
         </div>
       </section>
 
-      {course.courseDocumentUrl ? (
-        <section className="flex flex-wrap gap-3">
+      <section className="flex flex-wrap items-center gap-3">
+        <ExportClassPdfButton
+          programTitle={programTitle}
+          courseCode={course.courseCode}
+          courseDocumentUrl={course.courseDocumentUrl?.trim() || null}
+          dateLabel={course.dateLabel}
+          leadInstructor={course.leadInstructor}
+          location={course.location}
+          students={students.map((s) => {
+            const first = s["First Name"] ?? "";
+            const last = s["Last Name"] ?? "";
+            const name =
+              [first, last].filter(Boolean).join(" ") || "—";
+            return {
+              name,
+              email: s["Email Address"] || "—",
+              classDate: s["Class Date"] || "—",
+              score: s["Score"] || "—",
+              phone: s["Phone Number"] || "—",
+            };
+          })}
+        />
+        {course.courseDocumentUrl ? (
           <a
             href={course.courseDocumentUrl}
             target="_blank"
@@ -127,8 +149,8 @@ export function ProgramCourseDetail({
           >
             Course documents
           </a>
-        </section>
-      ) : null}
+        ) : null}
+      </section>
 
       <section className="rounded-xl border border-red-900/30 bg-[var(--surface)] p-6">
         <h2 className="text-lg font-semibold text-white">Roster information</h2>
