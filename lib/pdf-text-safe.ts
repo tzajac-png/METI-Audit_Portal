@@ -5,6 +5,7 @@
 export function sanitizeForPdfStandardFont(text: string): string {
   if (!text) return "";
   const s = text
+    .replace(/[\uD800-\uDFFF]/g, "?")
     .replace(/\ufeff/g, "")
     .replace(/[\u00a0\u1680\u180e\u2000-\u200a\u202f\u205f\u3000]/g, " ")
     .replace(/[\u2018\u2019\u201A\u2032]/g, "'")

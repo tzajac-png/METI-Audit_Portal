@@ -60,15 +60,22 @@ export function ExportClassPdfButton({
       a.click();
       document.body.removeChild(a);
       window.setTimeout(() => URL.revokeObjectURL(url), 2500);
-    } catch (e) {
+    } catch (e: unknown) {
       console.error(e);
-      const detail =
-        e instanceof Error ? e.message : e == null ? "" : String(e);
-      alert(
-        detail
-          ? `Could not create PDF: ${detail}`
-          : "Could not create PDF.",
-      );
+      const raw =
+        e instanceof Error
+          ? e.message || e.name || e.stack
+          : typeof e === "string"
+            ? e
+            : (() => {
+                try {
+                  return JSON.stringify(e);
+                } catch {
+                  return String(e);
+                }
+              })();
+      const detail = raw?.trim() ? raw.trim() : "Unknown error (check console).";
+      alert(`Could not create PDF: ${detail}`);
     } finally {
       setBusy(false);
     }
