@@ -53,13 +53,20 @@ export function ExportClassPdfButton({
       const a = document.createElement("a");
       a.href = url;
       a.download = fn;
+      a.rel = "noopener";
+      a.style.position = "fixed";
+      a.style.left = "-9999px";
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      window.setTimeout(() => URL.revokeObjectURL(url), 2500);
     } catch (e) {
       console.error(e);
+      const detail =
+        e instanceof Error ? e.message : e == null ? "" : String(e);
       alert(
-        e instanceof Error
-          ? `Could not create PDF: ${e.message}`
+        detail
+          ? `Could not create PDF: ${detail}`
           : "Could not create PDF.",
       );
     } finally {

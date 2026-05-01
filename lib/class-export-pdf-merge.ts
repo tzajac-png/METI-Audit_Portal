@@ -3,6 +3,25 @@ import {
   metiRedRgbTuple,
   metiRedTintRgbTuple,
 } from "@/lib/meti-export-brand";
+import { sanitizeForPdfStandardFont } from "@/lib/pdf-text-safe";
+
+function safeInputForPdf(input: ClassExportMergeInput): ClassExportMergeInput {
+  return {
+    programTitle: sanitizeForPdfStandardFont(input.programTitle),
+    courseCode: sanitizeForPdfStandardFont(input.courseCode),
+    courseDocumentUrl: input.courseDocumentUrl,
+    dateLabel: sanitizeForPdfStandardFont(input.dateLabel),
+    leadInstructor: sanitizeForPdfStandardFont(input.leadInstructor),
+    location: sanitizeForPdfStandardFont(input.location),
+    students: input.students.map((s) => ({
+      name: sanitizeForPdfStandardFont(s.name),
+      email: sanitizeForPdfStandardFont(s.email),
+      classDate: sanitizeForPdfStandardFont(s.classDate),
+      score: sanitizeForPdfStandardFont(s.score),
+      phone: sanitizeForPdfStandardFont(s.phone),
+    })),
+  };
+}
 
 export type ClassExportStudentRow = {
   name: string;
@@ -103,7 +122,7 @@ async function buildRosterPdfBytes(
   doc.setTextColor(...BLACK);
   doc.setFont("helvetica", "normal");
   doc.text(
-    `${input.programTitle} · ${input.courseCode} · ${input.students.length} student${input.students.length === 1 ? "" : "s"}`,
+    `${input.programTitle} - ${input.courseCode} - ${input.students.length} student${input.students.length === 1 ? "" : "s"}`,
     margin,
     y,
   );
@@ -172,6 +191,8 @@ async function buildRosterPdfBytes(
 export async function buildClassExportMergedPdf(
   input: ClassExportMergeInput,
 ): Promise<Uint8Array> {
+  const safe = safeInputForPdf(input);
+
   const { PDFDocument, rgb, StandardFonts } = await import("pdf-lib");
 
   const redRgb = rgb(
@@ -186,7 +207,7 @@ export async function buildClassExportMergedPdf(
   const redTuple = metiRedRgbTuple();
 
   const coursePdfBytes = await fetchCoursePdfBytesForExport(
-    input.courseDocumentUrl ?? null,
+    safe.courseDocumentUrl ?? null,
   );
 
   const merged = await PDFDocument.create();
@@ -204,28 +225,33 @@ export async function buildClassExportMergedPdf(
   let headerBottomFromTop = margin;
 
   if (logoBytes) {
-    const logo = await merged.embedPng(logoBytes);
-    const logoH = 52;
-    const scale = logoH / logo.height;
-    const logoW = logo.width * scale;
-    const xRight = pageW - margin - logoW;
-    const yBottom = pageH - margin - logoH;
-    page.drawImage(logo, {
-      x: xRight,
-      y: yBottom,
-      width: logoW,
-      height: logoH,
-    });
-    headerBottomFromTop = Math.max(headerBottomFromTop, margin + logoH + 10);
-  } else {
-    page.drawText("METI", {
+    try {
+      const logo = await merged.embedPng(logoBytes);
+      const logoH = 52;
+      const scale = logoH / logo.height;
+      const logoW = logo.width * scale;
+      const xRight = pageW - margin - logoW;
+      const yBottom = pageH - margin - logoH;
+      page.drawImage(logo, {
+        x: xRight,
+        y: yBottom,
+        width: logoW,
+        height: logoH,
+      });
+      headerBottomFromTop = Math.max(headerBottomFromTop, margin + logoH + 10);
+    } catch {
+      /* PNG incompatible with pdf-lib — fall through to text mark */
+    }
+  }
+  if (headerBottomFromTop === margin) {
+    page.drawText(sanitizeForPdfStandardFont("METI"), {
       x: pageW - margin - 72,
       y: pageH - margin - 14,
       size: 14,
       font: helvBold,
       color: redRgb,
     });
-    page.drawText("Michigan Emergency Training Institute", {
+    page.drawText(sanitizeForPdfStandardFont("Michigan Emergency Training Institute"), {
       x: pageW - margin - 140,
       y: pageH - margin - 6,
       size: 7,
@@ -234,6 +260,7 @@ export async function buildClassExportMergedPdf(
     });
     headerBottomFromTop = margin + 36;
   }
+
 
   const lineY = pageH - headerBottomFromTop;
   page.drawLine({
@@ -251,7 +278,7 @@ export async function buildClassExportMergedPdf(
     color = blackRgb,
   ) => {
     const yPdf = pageH - dTop - size;
-    page.drawText(txt, {
+    page.drawText(sanitizeForPdfStandardFont(txt), {
       x: margin,
       y: yPdf,
       size,
@@ -271,20 +298,20 @@ export async function buildClassExportMergedPdf(
   }
 
   drawLine("Class", 10, true, blackRgb);
-  drawLine(`Program: ${input.programTitle}`, 9.5, false, blackRgb);
-  drawLine(`Course code: ${input.courseCode}`, 9.5, false, blackRgb);
-  drawLine(`Date: ${input.dateLabel}`, 9.5, false, blackRgb);
-  drawLine(`Lead instructor: ${input.leadInstructor}`, 9.5, false, blackRgb);
-  for (const ln of wrapLines(`Location: ${input.location}`, maxChars)) {
+  drawLine(`Program: ${safe.programTitle}`, 9.5, false, blackRgb);
+  drawLine(`Course code: ${safe.courseCode}`, 9.5, false, blackRgb);
+  drawLine(`Date: ${safe.dateLabel}`, 9.5, false, blackRgb);
+  drawLine(`Lead instructor: ${safe.leadInstructor}`, 9.5, false, blackRgb);
+  for (const ln of wrapLines(`Location: ${safe.location}`, maxChars)) {
     drawLine(ln, 9.5, false, blackRgb);
   }
 
   dTop += 4;
   const boxTopFromTop = dTop;
-  const url = input.courseDocumentUrl?.trim();
+  const url = safe.courseDocumentUrl?.trim();
 
   if (url) {
-    const urlLines = wrapLines(url, maxChars - 4);
+    const urlLines = wrapLines(sanitizeForPdfStandardFont(url), maxChars - 4);
     const boxH = 26 + urlLines.length * 10;
     const boxY = pageH - boxTopFromTop - boxH;
     page.drawRectangle({
@@ -297,7 +324,7 @@ export async function buildClassExportMergedPdf(
       color: tintRgb,
     });
     let ty = boxY + boxH - 14;
-    page.drawText("Course packet link", {
+    page.drawText(sanitizeForPdfStandardFont("Course packet link"), {
       x: margin + 8,
       y: ty,
       size: 10,
@@ -305,16 +332,21 @@ export async function buildClassExportMergedPdf(
       color: redRgb,
     });
     ty -= 12;
-    page.drawText("Open this URL in your browser if the embedded page does not load:", {
-      x: margin + 8,
-      y: ty,
-      size: 8.5,
-      font: helv,
-      color: blackRgb,
-    });
+    page.drawText(
+      sanitizeForPdfStandardFont(
+        "Open this URL in your browser if the embedded page does not load:",
+      ),
+      {
+        x: margin + 8,
+        y: ty,
+        size: 8.5,
+        font: helv,
+        color: blackRgb,
+      },
+    );
     ty -= 11;
     for (const ul of urlLines) {
-      page.drawText(ul, {
+      page.drawText(sanitizeForPdfStandardFont(ul), {
         x: margin + 8,
         y: ty,
         size: 7,
@@ -371,18 +403,25 @@ export async function buildClassExportMergedPdf(
       }
     } catch {
       const oy = pageH - embedTopFromTop - 40;
-      page.drawText("Could not embed the course PDF (open the link above).", {
-        x: margin,
-        y: oy,
-        size: 9,
-        font: helv,
-        color: grayRgb,
-      });
+      page.drawText(
+        sanitizeForPdfStandardFont(
+          "Could not embed the course PDF (open the link above).",
+        ),
+        {
+          x: margin,
+          y: oy,
+          size: 9,
+          font: helv,
+          color: grayRgb,
+        },
+      );
     }
   } else if (url && !coursePdfBytes) {
     const oy = pageH - embedTopFromTop - 24;
     page.drawText(
-      "Course link did not return a PDF for embedding (permissions or format). Use the URL in the box above.",
+      sanitizeForPdfStandardFont(
+        "Course link did not return a PDF for embedding (permissions or format). Use the URL in the box above.",
+      ),
       {
         x: margin,
         y: oy,
@@ -394,12 +433,14 @@ export async function buildClassExportMergedPdf(
   }
 
   const footLines = wrapLines(
-    `Exported ${new Date().toLocaleString()} · Page 1: METI cover and course packet when available. Student roster follows.`,
+    sanitizeForPdfStandardFont(
+      `Exported ${new Date().toLocaleString()} - Page 1: METI cover and course packet when available. Student roster follows.`,
+    ),
     maxChars + 10,
   );
   let fy = 22;
   for (const fl of footLines) {
-    page.drawText(fl, {
+    page.drawText(sanitizeForPdfStandardFont(fl), {
       x: margin,
       y: fy,
       size: 7.5,
@@ -409,12 +450,30 @@ export async function buildClassExportMergedPdf(
     fy += 9;
   }
 
-  const rosterBytes = await buildRosterPdfBytes(input, redTuple);
-  const rosterDoc = await PDFDocument.load(rosterBytes);
-  const rIdx = rosterDoc.getPageIndices();
-  const rCopied = await merged.copyPages(rosterDoc, rIdx);
-  for (const p of rCopied) {
-    merged.addPage(p);
+  const rosterBytes = await buildRosterPdfBytes(safe, redTuple);
+  try {
+    const rosterDoc = await PDFDocument.load(rosterBytes, {
+      ignoreEncryption: true,
+    });
+    const rIdx = rosterDoc.getPageIndices();
+    const rCopied = await merged.copyPages(rosterDoc, rIdx);
+    for (const p of rCopied) {
+      merged.addPage(p);
+    }
+  } catch {
+    const fall = merged.addPage([pageW, pageH]);
+    fall.drawText(
+      sanitizeForPdfStandardFont(
+        "The roster table could not be attached. Export again or copy roster from the course page.",
+      ),
+      {
+        x: margin,
+        y: pageH - margin - 40,
+        size: 11,
+        font: helv,
+        color: grayRgb,
+      },
+    );
   }
 
   const total = merged.getPageCount();
@@ -422,7 +481,7 @@ export async function buildClassExportMergedPdf(
     const pg = merged.getPage(i);
     const label = `Page ${i + 1} of ${total}`;
     const w = helv.widthOfTextAtSize(label, 8);
-    pg.drawText(label, {
+    pg.drawText(sanitizeForPdfStandardFont(label), {
       x: pageW - margin - w,
       y: 20,
       size: 8,
