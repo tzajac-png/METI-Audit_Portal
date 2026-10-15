@@ -1,18 +1,32 @@
 import { COURSE_TYPES, inferCourseType, type CourseType } from "@/lib/course";
 import {
   DEFAULT_GID_BLS_INSTRUCTOR,
+  DEFAULT_GID_BLS_SKILLS_CHECKOFF_INSTRUCTOR,
   fetchSheetTable,
 } from "@/lib/google-sheet";
 import {
   DEFAULT_INSTRUCTOR_GID,
   INSTRUCTOR_TAB_EDIT_URL,
 } from "@/lib/instructor-course-sheets";
+import { courseCodesFromStudentRow } from "@/lib/student-roster";
 
 /** Column Z is index 25 (A = 0). */
 export const INSTRUCTOR_SHEET_COLUMN_Z_INDEX = 25;
 
+/** HS BLS Skills Check instructor tab — column X (0-based index 23) for course documents. */
+export const BLS_SKILLS_CHECK_INSTRUCTOR_COURSE_DOC_COLUMN_INDEX = 23;
+
+export type FetchInstructorCoursesOptions = {
+  live?: boolean;
+  /** When set, read course document URL from this column instead of Z / header fallbacks. */
+  courseDocumentColumnIndex?: number;
+};
+
+/** Standard programs plus HS BLS Skills Check (separate instructor tab). */
+export type AuditProgramType = CourseType | "HS BLS Skills Check";
+
 export type InstructorCourseSummary = {
-  courseType: CourseType;
+  courseType: AuditProgramType;
   courseCode: string;
   dateLabel: string;
   leadInstructor: string;
@@ -207,34 +221,61 @@ export function gidForCourseType(t: CourseType): string {
  */
 export async function fetchInstructorCoursesForGid(
   gid: string,
-  expectedType: CourseType,
+  expectedType: CourseType | null,
+  sheetOptions?: FetchInstructorCoursesOptions,
 ): Promise<{ courses: InstructorCourseSummary[]; sourceUrl: string }> {
-  const { rows, rawRowCells, sourceUrl } = await fetchSheetTable(gid);
+  const { rows, rawRowCells, sourceUrl } = await fetchSheetTable(
+    gid,
+    sheetOptions,
+  );
 
   const summaries: InstructorCourseSummary[] = [];
 
   for (let i = 0; i < rows.length; i++) {
     const raw = rows[i];
-    const courseCode = pick(raw, ["CourseCode", "PendingCourseID"]);
+    const courseCode =
+      pick(raw, ["CourseCode", "PendingCourseID"]) ||
+      courseCodesFromStudentRow(raw)[0] ||
+      "";
     if (!courseCode) continue;
     if (shouldHideInstructorCourseRow(raw)) continue;
-    if (inferCourseType(courseCode) !== expectedType) continue;
+    if (
+      expectedType != null &&
+      inferCourseType(courseCode) !== expectedType
+    ) {
+      continue;
+    }
 
     const cells = rawRowCells[i] ?? [];
-    const columnZRaw = (cells[INSTRUCTOR_SHEET_COLUMN_Z_INDEX] ?? "").trim();
-    const fromZ = httpUrlFromCell(columnZRaw);
-    const fromCourseDocs = httpUrlFromCell(
-      pick(raw, ["Course Documents", "Course Document Link", "Course Paperwork"]),
-    );
-    const courseDocumentUrl = fromZ || fromCourseDocs;
+    const docColumnIndex = sheetOptions?.courseDocumentColumnIndex;
+    let columnZRaw: string;
+    let courseDocumentUrl: string;
+    if (docColumnIndex != null) {
+      columnZRaw = (cells[docColumnIndex] ?? "").trim();
+      courseDocumentUrl = httpUrlFromCell(columnZRaw);
+    } else {
+      columnZRaw = (cells[INSTRUCTOR_SHEET_COLUMN_Z_INDEX] ?? "").trim();
+      const fromZ = httpUrlFromCell(columnZRaw);
+      const fromCourseDocs = httpUrlFromCell(
+        pick(raw, ["Course Documents", "Course Document Link", "Course Paperwork"]),
+      );
+      const fromRosterPdf = httpUrlFromCell(
+        pick(raw, ["Roster PDF Link", "Roster PDF"]),
+      );
+      courseDocumentUrl = fromZ || fromRosterPdf || fromCourseDocs;
+    }
 
     const leadInstructor = pick(raw, ["Lead Instructor"]);
     const location = pick(raw, ["Course Location"]);
     const startDate = pick(raw, ["Course Start Date", "Class Date"]);
     const dateLabel = startDate || pick(raw, ["Timestamp"]);
 
+    const inferred = inferCourseType(courseCode);
+    const courseType: AuditProgramType =
+      expectedType ?? (inferred === "Other" ? "BLS" : inferred);
+
     summaries.push({
-      courseType: expectedType,
+      courseType,
       courseCode,
       dateLabel,
       leadInstructor: leadInstructor || "—",
@@ -250,18 +291,25 @@ export async function fetchInstructorCoursesForGid(
   return { courses: summaries, sourceUrl };
 }
 
+function gidForBlsSkillsCheckoffInstructor(): string {
+  return (
+    process.env.GOOGLE_SHEET_GID_BLS_SKILLS_CHECKOFF_INSTRUCTOR?.trim() ??
+    DEFAULT_GID_BLS_SKILLS_CHECKOFF_INSTRUCTOR
+  );
+}
+
 export type FetchAllInstructorResult = {
   courses: InstructorCourseSummary[];
   fetchedAt: string;
-  fetchErrors: { type: CourseType; message: string }[];
+  fetchErrors: { type: AuditProgramType; message: string }[];
 };
 
 export async function fetchAllInstructorCoursesForAudit(): Promise<FetchAllInstructorResult> {
-  const fetchErrors: { type: CourseType; message: string }[] = [];
+  const fetchErrors: { type: AuditProgramType; message: string }[] = [];
   const all: InstructorCourseSummary[] = [];
 
-  await Promise.all(
-    COURSE_TYPES.map(async (t) => {
+  await Promise.all([
+    ...COURSE_TYPES.map(async (t) => {
       const gid = gidForCourseType(t);
       try {
         const { courses } = await fetchInstructorCoursesForGid(gid, t);
@@ -273,7 +321,27 @@ export async function fetchAllInstructorCoursesForAudit(): Promise<FetchAllInstr
         });
       }
     }),
-  );
+    (async () => {
+      const gid = gidForBlsSkillsCheckoffInstructor();
+      try {
+        const { courses } = await fetchInstructorCoursesForGid(gid, null, {
+          courseDocumentColumnIndex:
+            BLS_SKILLS_CHECK_INSTRUCTOR_COURSE_DOC_COLUMN_INDEX,
+        });
+        all.push(
+          ...courses.map((c) => ({
+            ...c,
+            courseType: "HS BLS Skills Check" as const,
+          })),
+        );
+      } catch (e) {
+        fetchErrors.push({
+          type: "HS BLS Skills Check",
+          message: e instanceof Error ? e.message : "Sheet fetch failed",
+        });
+      }
+    })(),
+  ]);
 
   all.sort((a, b) => parseUsDate(b.dateLabel) - parseUsDate(a.dateLabel));
 

@@ -4,6 +4,7 @@ import {
   gidForCourseType,
   type InstructorCourseSummary,
 } from "@/lib/instructor-courses";
+import { isPaidForByNorthville } from "@/lib/skills-check-northville";
 
 export type ProgramCourseSummary = {
   courseCode: string;
@@ -13,6 +14,8 @@ export type ProgramCourseSummary = {
   courseDocumentUrl: string;
   columnZRaw: string;
   raw: Record<string, string>;
+  /** Instructor row has “Paid for by Northville?” = Yes. */
+  paidForByNorthville?: boolean;
 };
 
 function toSummary(c: InstructorCourseSummary): ProgramCourseSummary {
@@ -24,6 +27,7 @@ function toSummary(c: InstructorCourseSummary): ProgramCourseSummary {
     courseDocumentUrl: c.courseDocumentUrl,
     columnZRaw: c.columnZRaw,
     raw: c.raw,
+    paidForByNorthville: isPaidForByNorthville(c.raw),
   };
 }
 
@@ -49,13 +53,22 @@ export async function fetchProgramCourseSummaries(
   };
 }
 
+function foldCourseCode(s: string): string {
+  return s.trim().normalize("NFKC");
+}
+
 export async function getProgramCourseByCode(
   courseType: CourseType,
   courseCode: string,
 ): Promise<ProgramCourseSummary | null> {
   const { courses } = await fetchProgramCourseSummaries(courseType);
-  const normalized = courseCode.trim();
+  const normalized = foldCourseCode(courseCode);
+  const exact = courses.find((c) => foldCourseCode(c.courseCode) === normalized);
+  if (exact) return exact;
+  const lower = normalized.toLowerCase();
   return (
-    courses.find((c) => c.courseCode.trim() === normalized) ?? null
+    courses.find(
+      (c) => foldCourseCode(c.courseCode).toLowerCase() === lower,
+    ) ?? null
   );
 }

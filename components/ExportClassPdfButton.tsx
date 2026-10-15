@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import {
-  buildClassExportMergedPdf,
-  type ClassExportStudentRow,
+import type {
+  ClassExportMergeInput,
+  ClassExportStudentRow,
 } from "@/lib/class-export-pdf-merge";
 
 export type ExportClassPdfStudentRow = ClassExportStudentRow;
@@ -37,7 +37,10 @@ export function ExportClassPdfButton({
   const onExport = useCallback(async () => {
     setBusy(true);
     try {
-      const bytes = await buildClassExportMergedPdf({
+      const { buildClassExportMergedPdf } = await import(
+        "@/lib/class-export-pdf-merge"
+      );
+      const payload: ClassExportMergeInput = {
         programTitle,
         courseCode,
         courseDocumentUrl,
@@ -45,7 +48,8 @@ export function ExportClassPdfButton({
         leadInstructor,
         location,
         students,
-      });
+      };
+      const bytes = await buildClassExportMergedPdf(payload);
       const fn = `${safePdfSlug(programTitle)}-${safePdfSlug(courseCode)}-export.pdf`;
       const copy = new Uint8Array(bytes);
       const blob = new Blob([copy], { type: "application/pdf" });

@@ -1,5 +1,8 @@
 import { parseCSV, rowsToObjects } from "@/lib/csv";
-import { fetchSheetGridOmittingHiddenRows } from "@/lib/google-sheets-api";
+import {
+  fetchSheetGridOmittingHiddenRows,
+  fetchSheetValuesAsTable,
+} from "@/lib/google-sheets-api";
 
 /** Student Sign Up 2026 spreadsheet ID */
 export const DEFAULT_SHEET_ID =
@@ -10,6 +13,12 @@ export const DEFAULT_GID_STUDENTS = "854682937";
 
 /** Tab: Instructor Roster (BLS course rows for this build) */
 export const DEFAULT_GID_BLS_INSTRUCTOR = "89421864";
+
+/** Tab: HS BLS Skills Check — instructor course rows */
+export const DEFAULT_GID_BLS_SKILLS_CHECKOFF_INSTRUCTOR = "1496083152";
+
+/** Tab: HS BLS Skills Check — student signups */
+export const DEFAULT_GID_BLS_SKILLS_CHECKOFF_STUDENTS = "107260065";
 
 /** Program-specific student signup tabs (same workbook) */
 export const DEFAULT_GID_ACLS_STUDENTS = "907531989";
@@ -58,24 +67,60 @@ function buildTableFromRows(
 }
 
 const CSV_FALLBACK_ENV = "GOOGLE_SHEETS_ALLOW_CSV_FALLBACK";
+/** Optional: skip heavy grid fetch and use values API only (fast; UI-hidden rows/columns still appear). */
+const SHEET_PREFER_VALUES_API_ENV = "GOOGLE_SHEETS_PREFER_VALUES_API";
+/** Optional: set to a positive number (seconds) to cache sheet fetches. Omit for always-current sheet data. */
+const SHEET_FETCH_CACHE_SECONDS_ENV = "GOOGLE_SHEETS_FETCH_CACHE_SECONDS";
+
+function sheetTableFetchMode(options?: { live?: boolean }): {
+  live?: boolean;
+  revalidateSeconds?: number;
+} {
+  if (options?.live === true) {
+    return { live: true };
+  }
+  const raw = process.env[SHEET_FETCH_CACHE_SECONDS_ENV]?.trim();
+  if (!raw) return {};
+  const sec = parseInt(raw, 10);
+  if (!Number.isFinite(sec) || sec <= 0) return {};
+  return { revalidateSeconds: sec };
+}
+
+function sheetTableRequestInit(mode: ReturnType<typeof sheetTableFetchMode>): RequestInit {
+  const headers = { "User-Agent": "METI-Audit-Portal/1.0" };
+  if (mode.live === true) {
+    return { cache: "no-store", headers };
+  }
+  if (
+    mode.revalidateSeconds != null &&
+    Number.isFinite(mode.revalidateSeconds) &&
+    mode.revalidateSeconds > 0
+  ) {
+    return { next: { revalidate: mode.revalidateSeconds }, headers };
+  }
+  return { cache: "no-store", headers };
+}
 
 /**
- * Loads a tab by `gid`.
- *
- * **`GOOGLE_SHEETS_API_KEY` is required** so hidden rows/columns and filter-hidden
- * dimensions match Google Sheets. Public CSV export cannot represent visibility.
- *
- * For local testing without a key, set `GOOGLE_SHEETS_ALLOW_CSV_FALLBACK=true`
- * (hidden data may still appear in the portal).
- */
-/**
- * Load a tab from an arbitrary spreadsheet (same API key / CSV rules as
+ * Loads a tab from an arbitrary spreadsheet (same API key / CSV rules as
  * {@link fetchSheetTable}).
+ *
+ * By default, fetches use `cache: no-store` so the portal reflects the current sheet.
+ * Set `GOOGLE_SHEETS_FETCH_CACHE_SECONDS` to a positive number to cache reads (seconds).
+ *
+ * When `GOOGLE_SHEETS_API_KEY` is set, the app first tries the **grid** API (respects
+ * hidden rows/columns). If that fails or times out on large tabs, it automatically
+ * retries with the **values** API (smaller payload; hidden UI rows may still show).
+ * Set `GOOGLE_SHEETS_PREFER_VALUES_API=true` to skip grid and load values only.
+ *
+ * Pass `{ valuesOnly: true }` for tabs that should avoid grid fetch (e.g. formula-heavy
+ * student response sheets). Student signups use values-only by default via
+ * {@link fetchStudentRowsForTabGid} unless `GOOGLE_SHEETS_STUDENT_TAB_USE_GRID=true`.
  */
 export async function fetchSheetTableFromWorkbook(
   sheetId: string,
   gid: string,
-  options?: { live?: boolean },
+  options?: { live?: boolean; valuesOnly?: boolean },
 ): Promise<{
   headers: string[];
   rows: Record<string, string>[];
@@ -87,24 +132,55 @@ export async function fetchSheetTableFromWorkbook(
     process.env[CSV_FALLBACK_ENV]?.trim() === "true" ||
     process.env[CSV_FALLBACK_ENV]?.trim() === "1";
 
-  const fetchInit: RequestInit = options?.live
-    ? {
-        cache: "no-store",
-        headers: { "User-Agent": "METI-Audit-Portal/1.0" },
-      }
-    : {
-        next: { revalidate: 60 },
-        headers: { "User-Agent": "METI-Audit-Portal/1.0" },
-      };
+  const mode = sheetTableFetchMode(options);
+  const fetchInit = sheetTableRequestInit(mode);
 
   if (apiKey) {
-    const { table, sourceUrl } = await fetchSheetGridOmittingHiddenRows(
-      sheetId,
-      gid,
-      apiKey,
-      options?.live ? { live: true } : undefined,
-    );
-    return buildTableFromRows(table, sourceUrl);
+    const preferValuesOnly =
+      options?.valuesOnly === true ||
+      process.env[SHEET_PREFER_VALUES_API_ENV]?.trim() === "true" ||
+      process.env[SHEET_PREFER_VALUES_API_ENV]?.trim() === "1";
+
+    if (preferValuesOnly) {
+      const { table, sourceUrl } = await fetchSheetValuesAsTable(
+        sheetId,
+        gid,
+        apiKey,
+        mode,
+      );
+      return buildTableFromRows(table, sourceUrl);
+    }
+
+    try {
+      const { table, sourceUrl } = await fetchSheetGridOmittingHiddenRows(
+        sheetId,
+        gid,
+        apiKey,
+        mode,
+      );
+      return buildTableFromRows(table, sourceUrl);
+    } catch (gridErr) {
+      const gridMsg =
+        gridErr instanceof Error ? gridErr.message : String(gridErr);
+      try {
+        const { table, sourceUrl } = await fetchSheetValuesAsTable(
+          sheetId,
+          gid,
+          apiKey,
+          mode,
+        );
+        return buildTableFromRows(table, sourceUrl);
+      } catch (valuesErr) {
+        const valuesMsg =
+          valuesErr instanceof Error ? valuesErr.message : String(valuesErr);
+        throw new Error(
+          `Google Sheet could not be loaded. Grid fetch: ${gridMsg}. Values fallback: ${valuesMsg}. ` +
+            `Confirm GOOGLE_SHEETS_API_KEY is set, the Google Sheets API is enabled for that key in Google Cloud, ` +
+            `and the spreadsheet is shared as “Anyone with the link can view”. ` +
+            `For very large tabs, set GOOGLE_SHEETS_PREFER_VALUES_API=true on the server.`,
+        );
+      }
+    }
   }
 
   if (!allowCsv) {
@@ -131,7 +207,7 @@ export async function fetchSheetTableFromWorkbook(
 
 export async function fetchSheetTable(
   gid: string,
-  options?: { live?: boolean },
+  options?: { live?: boolean; valuesOnly?: boolean },
 ): Promise<{
   headers: string[];
   rows: Record<string, string>[];

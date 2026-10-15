@@ -1,5 +1,5 @@
 import { BlsCourseList } from "@/components/BlsCourseList";
-import { getAuditDisplayStatus } from "@/lib/audit-status";
+import { getAuditDisplayStatusForCodes } from "@/lib/audit-status";
 import { fetchBlsCourseSummaries } from "@/lib/bls-courses";
 
 export const dynamic = "force-dynamic";
@@ -7,13 +7,8 @@ export const dynamic = "force-dynamic";
 export default async function BlsCoursesPage() {
   try {
     const { courses, fetchedAt } = await fetchBlsCourseSummaries();
-    const auditByCode = Object.fromEntries(
-      await Promise.all(
-        courses.map(async (c) => [
-          c.courseCode,
-          await getAuditDisplayStatus(c.courseCode),
-        ] as const),
-      ),
+    const auditByCode = await getAuditDisplayStatusForCodes(
+      courses.map((c) => c.courseCode),
     );
     return (
       <BlsCourseList

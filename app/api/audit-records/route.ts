@@ -7,7 +7,9 @@ import {
   isAuditorName,
   type ComplianceChecklist,
 } from "@/lib/audit-constants";
-import { serverlessBlobGuardResponse } from "@/lib/serverless-blob-guard";
+import { serverlessStorageGuardResponse } from "@/lib/serverless-storage-guard";
+import { isAuditRecordComplete } from "@/lib/audit-status";
+import { removeCourseAuditRequest } from "@/lib/course-audit-requests-store";
 import {
   createAuditRecord,
   deleteAuditRecord,
@@ -38,7 +40,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const blocked = serverlessBlobGuardResponse();
+  const blocked = serverlessStorageGuardResponse();
   if (blocked) return blocked;
 
   let form: FormData;
@@ -99,6 +101,9 @@ export async function POST(request: Request) {
       if (!rec) {
         return NextResponse.json({ error: "Record not found" }, { status: 404 });
       }
+      if (isAuditRecordComplete(rec)) {
+        await removeCourseAuditRequest(rec.courseCode);
+      }
       return NextResponse.json({ record: rec });
     }
 
@@ -106,6 +111,9 @@ export async function POST(request: Request) {
       ...baseInput,
       ecardFile: null,
     });
+    if (isAuditRecordComplete(rec)) {
+      await removeCourseAuditRequest(rec.courseCode);
+    }
     return NextResponse.json({ record: rec });
   } catch (e) {
     const msg =
@@ -120,7 +128,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const blocked = serverlessBlobGuardResponse();
+  const blocked = serverlessStorageGuardResponse();
   if (blocked) return blocked;
 
   const { searchParams } = new URL(request.url);

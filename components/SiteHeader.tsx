@@ -4,7 +4,7 @@ import { DashboardSignOutButton } from "@/components/DashboardSignOutButton";
 
 export function SiteHeader() {
   return (
-    <header className="border-b border-red-900/35 bg-[#0c0c0e]">
+    <header className="border-b border-red-900/35 bg-black">
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 flex-col gap-0">
           <Link
@@ -25,8 +25,7 @@ export function SiteHeader() {
               href="/"
               className="text-lg font-semibold tracking-tight text-white"
             >
-              METI{" "}
-              <span className="text-red-500">Course Portal</span>
+              METI <span className="text-red-500">Course Portal</span>
             </Link>
             <p className="text-sm text-zinc-400">
               BLS · ACLS · PALS · Heartsaver
@@ -34,10 +33,7 @@ export function SiteHeader() {
           </div>
         </div>
         <nav className="flex flex-wrap items-center gap-4 text-sm sm:gap-6">
-          <Link
-            href="/"
-            className="text-zinc-300 transition hover:text-white"
-          >
+          <Link href="/" className="text-zinc-200 transition hover:text-white">
             Dashboard
           </Link>
           <DashboardSignOutButton />

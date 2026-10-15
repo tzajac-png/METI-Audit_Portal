@@ -13,8 +13,9 @@ export default async function AuditCoursesPage() {
       <div>
         <h1 className="text-2xl font-semibold text-white">Course audits</h1>
         <p className="mt-1 text-sm text-zinc-400">
-          All programs (BLS, ACLS, PALS, Heartsaver): class status and pending vs
-          complete audit. Auditors: Tyler Zajac or Ben Bonathan only.
+          All programs (BLS, ACLS, PALS, Heartsaver, HS BLS Skills Check): new
+          audit requests, class status, and pending vs complete audits. Auditors:
+          Tyler Zajac or Ben Bonathan only.
         </p>
       </div>
       {fetchErrors.length > 0 ? (

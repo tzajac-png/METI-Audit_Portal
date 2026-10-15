@@ -1,28 +1,24 @@
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import { del, get, put } from "@vercel/blob";
 import type { AuditorName, ComplianceChecklist } from "@/lib/audit-constants";
 import { emptyCompliance, normalizeCompliance } from "@/lib/audit-constants";
-import {
-  blobReadWriteOptions,
-  isInstructorBlobStorageConfigured,
-} from "@/lib/instructor-vercel-blob";
+import { deleteCloudObject } from "@/lib/cloud-storage";
+import { createManifestStore } from "@/lib/manifest-store";
 
 const DATA_DIR = path.join(process.cwd(), "data");
-const STORE_FILE = path.join(DATA_DIR, "audit-records.json");
 const UPLOADS_DIR = path.join(DATA_DIR, "audit-uploads");
-
-/** JSON manifest in Blob when BLOB_READ_WRITE_TOKEN is set (Vercel production). */
-const BLOB_MANIFEST_PATHNAME = "audit-records/__manifest.json";
+const CLOUD_MANIFEST_KEY = "audit-records/__manifest.json";
 
 export type EcardFileMeta = {
   originalName: string;
   mimeType: string;
   size: number;
-  /** Local filename under data/audit-uploads/ when not using Blob. */
+  /** Local filename under data/audit-uploads/ when not using cloud storage. */
   storedName?: string;
-  /** Vercel Blob URL for private eCard / document. */
+  /** Backblaze B2 object key (production). */
+  storageKey?: string;
+  /** @deprecated Legacy Vercel Blob URL — no longer written. */
   blobUrl?: string;
 };
 
@@ -56,69 +52,38 @@ function normalizeRecord(raw: AuditRecord): AuditRecord {
           mimeType: raw.ecardFile.mimeType,
           size: raw.ecardFile.size,
           storedName: raw.ecardFile.storedName,
+          storageKey: raw.ecardFile.storageKey,
           blobUrl: raw.ecardFile.blobUrl,
         }
       : null,
   };
 }
 
-async function readStoreData(): Promise<StoreFile> {
-  if (isInstructorBlobStorageConfigured()) {
-    try {
-      const result = await get(BLOB_MANIFEST_PATHNAME, {
-        access: "private",
-        ...blobReadWriteOptions(),
-      });
-      if (!result || result.statusCode !== 200 || !result.stream) {
-        return { records: [] };
-      }
-      const raw = Buffer.from(
-        await new Response(result.stream).arrayBuffer(),
-      ).toString("utf8");
-      const parsed = JSON.parse(raw) as StoreFile;
-      if (parsed?.records && Array.isArray(parsed.records)) {
-        return {
-          records: parsed.records.map((r) => normalizeRecord(r as AuditRecord)),
-        };
-      }
-    } catch {
-      /* missing manifest or parse error */
-    }
-    return { records: [] };
-  }
+function isStoreFile(data: unknown): data is StoreFile {
+  return (
+    !!data &&
+    typeof data === "object" &&
+    "records" in data &&
+    Array.isArray((data as StoreFile).records)
+  );
+}
 
-  try {
-    const raw = fs.readFileSync(STORE_FILE, "utf8");
-    const parsed = JSON.parse(raw) as StoreFile;
-    if (parsed?.records && Array.isArray(parsed.records)) {
-      return {
-        records: parsed.records.map((r) => normalizeRecord(r as AuditRecord)),
-      };
-    }
-  } catch {
-    /* empty */
-  }
-  return { records: [] };
+const manifest = createManifestStore<StoreFile>({
+  localFileName: "audit-records.json",
+  cloudKey: CLOUD_MANIFEST_KEY,
+  defaultValue: () => ({ records: [] }),
+  normalize: (data) => ({
+    records: data.records.map((r) => normalizeRecord(r)),
+  }),
+  isValid: isStoreFile,
+});
+
+async function readStoreData(): Promise<StoreFile> {
+  return manifest.read();
 }
 
 async function writeStoreData(data: StoreFile): Promise<void> {
-  const normalized: StoreFile = {
-    records: data.records.map((r) => normalizeRecord(r)),
-  };
-
-  if (isInstructorBlobStorageConfigured()) {
-    await put(BLOB_MANIFEST_PATHNAME, JSON.stringify(normalized, null, 2), {
-      access: "private",
-      contentType: "application/json",
-      allowOverwrite: true,
-      addRandomSuffix: false,
-      ...blobReadWriteOptions(),
-    });
-    return;
-  }
-
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(STORE_FILE, JSON.stringify(normalized, null, 2), "utf8");
+  await manifest.write(data);
 }
 
 export async function listAuditRecords(): Promise<AuditRecord[]> {
@@ -141,7 +106,7 @@ export async function getLatestAuditForCourse(
 ): Promise<AuditRecord | null> {
   const key = courseCode.trim();
   const store = await readStoreData();
-  const matches = store.records.filter((r) => r.courseCode === key);
+  const matches = store.records.filter((r) => r.courseCode.trim() === key);
   if (matches.length === 0) return null;
   return matches.sort(
     (a, b) =>
@@ -149,14 +114,40 @@ export async function getLatestAuditForCourse(
   )[0];
 }
 
+/**
+ * One manifest read for many course codes — avoids N parallel cloud fetches
+ * on course list pages (was causing "Connection closed" on Vercel).
+ */
+export async function getLatestAuditForCourses(
+  courseCodes: string[],
+): Promise<Map<string, AuditRecord | null>> {
+  const store = await readStoreData();
+  const want = new Set(
+    courseCodes.map((c) => c.trim()).filter((c) => c.length > 0),
+  );
+  const best = new Map<string, AuditRecord>();
+  for (const r of store.records) {
+    const key = r.courseCode.trim();
+    if (!want.has(key)) continue;
+    const prev = best.get(key);
+    if (
+      !prev ||
+      new Date(r.auditedAt).getTime() > new Date(prev.auditedAt).getTime()
+    ) {
+      best.set(key, normalizeRecord(r));
+    }
+  }
+  const result = new Map<string, AuditRecord | null>();
+  for (const code of want) {
+    result.set(code, best.get(code) ?? null);
+  }
+  return result;
+}
+
 async function removeEcardStorage(f: EcardFileMeta | null | undefined): Promise<void> {
   if (!f) return;
-  if (f.blobUrl && isInstructorBlobStorageConfigured()) {
-    try {
-      await del(f.blobUrl, blobReadWriteOptions());
-    } catch {
-      /* ignore */
-    }
+  if (f.storageKey) {
+    await deleteCloudObject(f.storageKey);
     return;
   }
   if (f.storedName) {

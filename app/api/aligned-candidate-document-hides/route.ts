@@ -4,7 +4,7 @@ import {
   getHiddenCandidateDocumentRowKeys,
   hideCandidateDocumentRowKey,
 } from "@/lib/aligned-candidate-document-hides-store";
-import { serverlessBlobGuardResponse } from "@/lib/serverless-blob-guard";
+import { serverlessStorageGuardResponse } from "@/lib/serverless-storage-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const blocked = serverlessBlobGuardResponse();
+  const blocked = serverlessStorageGuardResponse();
   if (blocked) return blocked;
 
   let body: { rowKey?: string };

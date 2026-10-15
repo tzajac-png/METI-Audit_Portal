@@ -1,16 +1,16 @@
-import { del, put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import fs from "fs";
 import { getDashboardSessionValid } from "@/lib/auth";
 import {
-  blobReadWriteOptions,
-  isInstructorBlobStorageConfigured,
-} from "@/lib/instructor-vercel-blob";
-import { serverlessBlobGuardResponse } from "@/lib/serverless-blob-guard";
+  isRemoteCloudStorageConfigured,
+  writeCloudObject,
+} from "@/lib/cloud-storage";
+import { serverlessStorageGuardResponse } from "@/lib/serverless-storage-guard";
 import {
   appendUpload,
   buildStoredFileName,
   CREDENTIAL_EXPIRATION_CATEGORIES,
+  deleteUploadStorage,
   filePathForStoredName,
   listUploadsForInstructor,
   removeUploadEntry,
@@ -77,7 +77,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const blocked = serverlessBlobGuardResponse();
+  const blocked = serverlessStorageGuardResponse();
   if (blocked) return blocked;
 
   let body: unknown;
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const blocked = serverlessBlobGuardResponse();
+  const blocked = serverlessStorageGuardResponse();
   if (blocked) return blocked;
 
   let form: FormData;
@@ -180,22 +180,17 @@ export async function POST(request: Request) {
 
   const buf = Buffer.from(await file.arrayBuffer());
 
-  if (isInstructorBlobStorageConfigured()) {
+  if (isRemoteCloudStorageConfigured()) {
     try {
       const safeId =
         instructorId.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 200) || "id";
-      const blobPath = `instructor-uploads/${safeId}/${buildStoredFileName(file.name)}`;
-      const blob = await put(blobPath, buf, {
-        access: "private",
-        contentType: mime,
-        addRandomSuffix: true,
-        ...blobReadWriteOptions(),
-      });
+      const storageKey = `instructor-uploads/${safeId}/${buildStoredFileName(file.name)}`;
+      await writeCloudObject(storageKey, buf, mime);
       const entry = await appendUpload(instructorId, category, {
         originalName: file.name,
         mimeType: mime,
         size: buf.length,
-        blobUrl: blob.url,
+        storageKey,
       });
       return NextResponse.json({ entry });
     } catch (e) {
@@ -229,7 +224,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const blocked = serverlessBlobGuardResponse();
+  const blocked = serverlessStorageGuardResponse();
   if (blocked) return blocked;
 
   const { searchParams } = new URL(request.url);
@@ -248,13 +243,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (removed.blobUrl && isInstructorBlobStorageConfigured()) {
-    try {
-      await del(removed.blobUrl, blobReadWriteOptions());
-    } catch {
-      /* blob may already be gone */
-    }
-  }
+  await deleteUploadStorage(removed);
 
   return NextResponse.json({ ok: true });
 }

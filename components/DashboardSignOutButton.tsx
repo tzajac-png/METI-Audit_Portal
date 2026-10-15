@@ -1,6 +1,10 @@
 "use client";
 
-export function DashboardSignOutButton() {
+export function DashboardSignOutButton({
+  className,
+}: {
+  className?: string;
+}) {
   async function handleClick() {
     await fetch("/api/dashboard/logout", { method: "POST" });
     window.location.href = "/login";
@@ -10,7 +14,7 @@ export function DashboardSignOutButton() {
     <button
       type="button"
       onClick={handleClick}
-      className="text-zinc-400 transition hover:text-white"
+      className={className ?? "text-zinc-200 transition hover:text-white"}
     >
       Sign Out
     </button>

@@ -4,14 +4,23 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { InstructorCourseSummary } from "@/lib/instructor-courses";
 import type { AuditRecord } from "@/lib/audit-records-store";
+import type { CourseAuditRequest } from "@/lib/course-audit-requests-store";
 import {
   COMPLIANCE_FIELD_LABELS,
   complianceCompleteRatio,
 } from "@/lib/audit-constants";
+import {
+  isPaidForByNorthville,
+  NORTHVILLE_ROW_CLASS,
+} from "@/lib/skills-check-northville";
 
 type ApiGet = {
   records: AuditRecord[];
   complianceLabels: typeof COMPLIANCE_FIELD_LABELS;
+};
+
+type ApiRequests = {
+  requests: CourseAuditRequest[];
 };
 
 type Props = {
@@ -47,17 +56,27 @@ function auditLabel(
 
 export function AuditCoursesWorkspace({ courses }: Props) {
   const [data, setData] = useState<ApiGet | null>(null);
+  const [requests, setRequests] = useState<CourseAuditRequest[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/audit-records", { credentials: "include" });
-      if (!res.ok) {
+      const [recRes, reqRes] = await Promise.all([
+        fetch("/api/audit-records", { credentials: "include" }),
+        fetch("/api/course-audit-requests", { credentials: "include" }),
+      ]);
+      if (!recRes.ok) {
         setLoadError("Could not load audit records.");
         return;
       }
-      const json = (await res.json()) as ApiGet;
+      if (!reqRes.ok) {
+        setLoadError("Could not load audit requests.");
+        return;
+      }
+      const json = (await recRes.json()) as ApiGet;
+      const reqJson = (await reqRes.json()) as ApiRequests;
       setData(json);
+      setRequests(reqJson.requests ?? []);
       setLoadError(null);
     } catch {
       setLoadError("Could not load audit records.");
@@ -89,6 +108,82 @@ export function AuditCoursesWorkspace({ courses }: Props) {
 
   return (
     <div className="space-y-10">
+      <section className="rounded-xl border border-sky-900/40 bg-sky-950/15 p-6">
+        <h2 className="text-lg font-semibold text-white">New audit requests</h2>
+        <p className="mt-1 text-sm text-zinc-500">
+          Classes flagged from the course portal with{" "}
+          <span className="text-sky-300/90">Request audit</span>. Each row
+          disappears here once the latest audit for that class is{" "}
+          <span className="text-emerald-400/90">Complete</span>.
+        </p>
+
+        {loadError ? (
+          <p className="mt-4 text-red-400">{loadError}</p>
+        ) : !data ? (
+          <p className="mt-6 text-zinc-500">Loading audit requests…</p>
+        ) : requests.length === 0 ? (
+          <p className="mt-6 text-zinc-500">No open audit requests.</p>
+        ) : (
+          <div className="mt-6 overflow-x-auto">
+            <table className="min-w-full border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-sky-900/35 text-zinc-400">
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold">
+                    Requested
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold">
+                    Program
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold">
+                    Course
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold">
+                    Class date
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold">
+                    Location
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold">
+                    Lead instructor
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold">
+                    Audit
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800/80">
+                {requests.map((req) => (
+                  <tr key={req.courseCode} className="text-zinc-300">
+                    <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">
+                      {new Date(req.requestedAt).toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 font-medium text-sky-300/90">
+                      {req.programTitle}
+                    </td>
+                    <td className="max-w-[16rem] px-3 py-2 font-mono text-xs">
+                      {req.courseCode}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      {req.courseDateLabel}
+                    </td>
+                    <td className="px-3 py-2">{req.courseLocation}</td>
+                    <td className="px-3 py-2">{req.leadInstructor}</td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      <Link
+                        href={`/audit/courses/new?courseCode=${encodeURIComponent(req.courseCode)}`}
+                        className="font-medium text-red-400/90 underline hover:text-red-300"
+                      >
+                        Start audit
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       <div className="flex flex-wrap items-center gap-3">
         <Link
           href="/audit/courses/new"
@@ -106,7 +201,8 @@ export function AuditCoursesWorkspace({ courses }: Props) {
         <p className="mt-1 text-sm text-zinc-500">
           <span className="text-emerald-400/90">Complete</span> when the latest
           saved audit for that class has every compliance item checked. Otherwise{" "}
-          <span className="text-amber-200/90">Pending</span>.
+          <span className="text-amber-200/90">Pending</span>. Rows in red bill
+          to Northville City.
         </p>
 
         {loadError ? (
@@ -138,8 +234,16 @@ export function AuditCoursesWorkspace({ courses }: Props) {
               <tbody className="divide-y divide-zinc-800/80">
                 {dashboardRows.map((row) => {
                   const status = auditLabel(row.courseCode, records);
+                  const northvillePaid = isPaidForByNorthville(row.raw);
                   return (
-                    <tr key={`${row.courseType}-${row.courseCode}`} className="text-zinc-300">
+                    <tr
+                      key={`${row.courseType}-${row.courseCode}`}
+                      className={
+                        northvillePaid
+                          ? NORTHVILLE_ROW_CLASS
+                          : "text-zinc-300 hover:bg-zinc-900/40"
+                      }
+                    >
                       <td className="whitespace-nowrap px-3 py-2 font-medium text-red-300/90">
                         {row.courseType}
                       </td>

@@ -164,8 +164,23 @@ async function metiBlsAdminTokenValid(
   }
 }
 
+/**
+ * Auth middleware must always run for real app segments (e.g. /courses/…) even
+ * when the URL segment looks like a file (e.g. course codes ending in .pdf /
+ * .png from Document Studio). A single matcher with `.+\\.(png|…)$` matches
+ * from the *start* of the path, so `/courses/pals/foo.pdf` was treated like a
+ * static file, middleware was skipped, and course detail broke.
+ *
+ * 1) Explicit prefixes: always run middleware (no “static file” bypass).
+ * 2) Fallback: other top-level paths skip typical static assets only.
+ */
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
+    "/courses/:path*",
+    "/audit/:path*",
+    "/aligned-instructors-admin/:path*",
+    "/login",
+    "/",
+    "/((?!api/|_next/static|_next/image|favicon\\.ico|.+\.(?:ico|png|jpe?g|gif|svg|webp|css|js|mjs|map|txt|woff2?|ttf|eot|json|pdf)$).*)",
   ],
 };

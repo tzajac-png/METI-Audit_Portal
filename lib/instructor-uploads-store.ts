@@ -1,19 +1,13 @@
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import { get, put } from "@vercel/blob";
-import { sanitizeStoredFileName } from "@/lib/audit-records-store";
-import {
-  blobReadWriteOptions,
-  isInstructorBlobStorageConfigured,
-} from "@/lib/instructor-vercel-blob";
+import { deleteCloudObject } from "@/lib/cloud-storage";
+import { createManifestStore } from "@/lib/manifest-store";
+import { sanitizeStoredFileName } from "@/lib/sanitize-filename";
 
 const DATA_DIR = path.join(process.cwd(), "data");
-const STORE_FILE = path.join(DATA_DIR, "instructor-uploads.json");
 const UPLOADS_ROOT = path.join(DATA_DIR, "instructor-uploads-files");
-
-/** JSON manifest in Blob when BLOB_READ_WRITE_TOKEN is set (Vercel production). */
-const BLOB_MANIFEST_PATHNAME = "instructor-uploads/__manifest.json";
+const CLOUD_MANIFEST_KEY = "instructor-uploads/__manifest.json";
 
 export type InstructorUploadCategory =
   | "bls_provider_card"
@@ -44,7 +38,9 @@ export type InstructorUploadEntry = {
   originalName: string;
   /** Local disk filename under data/instructor-uploads-files/ (dev or non-Vercel hosts). */
   storedName?: string;
-  /** Vercel Blob URL when using BLOB_READ_WRITE_TOKEN (production). */
+  /** Backblaze B2 object key (production). */
+  storageKey?: string;
+  /** @deprecated Legacy Vercel Blob URL — no longer written. */
   blobUrl?: string;
   mimeType: string;
   size: number;
@@ -99,66 +95,22 @@ function normalizeStoreFile(data: StoreFile): StoreFile {
   return normalized;
 }
 
-async function readStoreData(): Promise<StoreFile> {
-  if (isInstructorBlobStorageConfigured()) {
-    try {
-      const result = await get(BLOB_MANIFEST_PATHNAME, {
-        access: "private",
-        ...blobReadWriteOptions(),
-      });
-      if (!result || result.statusCode !== 200 || !result.stream) {
-        return { byInstructor: {} };
-      }
-      const raw = Buffer.from(
-        await new Response(result.stream).arrayBuffer(),
-      ).toString("utf8");
-      const parsed = JSON.parse(raw) as StoreFile;
-      if (parsed?.byInstructor && typeof parsed.byInstructor === "object") {
-        return parsed;
-      }
-    } catch {
-      /* missing manifest or parse error */
-    }
-    return { byInstructor: {} };
-  }
-
-  try {
-    const raw = fs.readFileSync(STORE_FILE, "utf8");
-    const parsed = JSON.parse(raw) as StoreFile;
-    if (parsed?.byInstructor && typeof parsed.byInstructor === "object") {
-      return parsed;
-    }
-  } catch {
-    /* empty */
-  }
-  return { byInstructor: {} };
-}
-
-async function writeStoreData(data: StoreFile): Promise<void> {
-  const normalized = normalizeStoreFile(data);
-
-  if (isInstructorBlobStorageConfigured()) {
-    await put(
-      BLOB_MANIFEST_PATHNAME,
-      JSON.stringify(normalized, null, 2),
-      {
-        access: "private",
-        contentType: "application/json",
-        allowOverwrite: true,
-        addRandomSuffix: false,
-        ...blobReadWriteOptions(),
-      },
-    );
-    return;
-  }
-
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(
-    STORE_FILE,
-    JSON.stringify(normalized, null, 2),
-    "utf8",
+function isStoreFile(data: unknown): data is StoreFile {
+  return (
+    !!data &&
+    typeof data === "object" &&
+    "byInstructor" in data &&
+    typeof (data as StoreFile).byInstructor === "object"
   );
 }
+
+const manifest = createManifestStore<StoreFile>({
+  localFileName: "instructor-uploads.json",
+  cloudKey: CLOUD_MANIFEST_KEY,
+  defaultValue: () => ({ byInstructor: {} }),
+  normalize: normalizeStoreFile,
+  isValid: isStoreFile,
+});
 
 function safeSegment(s: string): string {
   return s.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 200) || "id";
@@ -174,7 +126,7 @@ export async function listUploadsForInstructor(instructorId: string): Promise<{
   uploads: Partial<Record<InstructorUploadCategory, InstructorUploadEntry[]>>;
   expirations: Partial<Record<InstructorUploadCategory, string | null>>;
 }> {
-  const store = await readStoreData();
+  const store = await manifest.read();
   const b = normalizeBucket(store.byInstructor[instructorId]);
   return {
     uploads: { ...b.uploads },
@@ -188,7 +140,7 @@ export async function getUploadEntry(
 ): Promise<
   { entry: InstructorUploadEntry; category: InstructorUploadCategory } | null
 > {
-  const store = await readStoreData();
+  const store = await manifest.read();
   const bucket = normalizeBucket(store.byInstructor[instructorId]);
   for (const [cat, list] of Object.entries(bucket.uploads) as [
     InstructorUploadCategory,
@@ -202,13 +154,13 @@ export async function getUploadEntry(
 
 /**
  * Removes one upload entry and deletes the file on disk when `storedName` is set.
- * Caller deletes the Vercel Blob when `blobUrl` is set (async `del` in API route).
+ * Caller deletes the cloud object when `storageKey` is set.
  */
 export async function removeUploadEntry(
   instructorId: string,
   entryId: string,
 ): Promise<InstructorUploadEntry | null> {
-  const store = await readStoreData();
+  const store = await manifest.read();
   const bucket = normalizeBucket(store.byInstructor[instructorId]);
   let removed: InstructorUploadEntry | null = null;
 
@@ -236,7 +188,7 @@ export async function removeUploadEntry(
 
   if (!removed) return null;
   store.byInstructor[instructorId] = bucket;
-  await writeStoreData(store);
+  await manifest.write(store);
   return removed;
 }
 
@@ -250,13 +202,13 @@ export async function appendUpload(
     id: randomUUID(),
     uploadedAt: new Date().toISOString(),
   };
-  const store = await readStoreData();
+  const store = await manifest.read();
   const bucket = normalizeBucket(store.byInstructor[instructorId]);
   const list = bucket.uploads[category] ?? [];
   list.push(entry);
   bucket.uploads[category] = list;
   store.byInstructor[instructorId] = bucket;
-  await writeStoreData(store);
+  await manifest.write(store);
   return entry;
 }
 
@@ -272,7 +224,7 @@ export async function setCredentialExpiration(
   if (trimmed !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
     throw new Error("Expiration must be YYYY-MM-DD");
   }
-  const store = await readStoreData();
+  const store = await manifest.read();
   const bucket = normalizeBucket(store.byInstructor[instructorId]);
   if (trimmed === "") {
     delete bucket.expirations[category];
@@ -280,7 +232,7 @@ export async function setCredentialExpiration(
     bucket.expirations[category] = trimmed;
   }
   store.byInstructor[instructorId] = bucket;
-  await writeStoreData(store);
+  await manifest.write(store);
 }
 
 export function filePathForStoredName(
@@ -293,4 +245,12 @@ export function filePathForStoredName(
 export function buildStoredFileName(originalName: string): string {
   const base = `${Date.now()}-${sanitizeStoredFileName(originalName)}`;
   return path.basename(base);
+}
+
+export async function deleteUploadStorage(
+  entry: InstructorUploadEntry,
+): Promise<void> {
+  if (entry.storageKey) {
+    await deleteCloudObject(entry.storageKey);
+  }
 }

@@ -1,5 +1,5 @@
 import { ProgramCourseList } from "@/components/ProgramCourseList";
-import { getAuditDisplayStatus } from "@/lib/audit-status";
+import { getAuditDisplayStatusForCodes } from "@/lib/audit-status";
 import { fetchProgramCourseSummaries } from "@/lib/program-courses";
 
 export const dynamic = "force-dynamic";
@@ -8,13 +8,8 @@ export default async function HeartsaverCoursesPage() {
   try {
     const { courses, fetchedAt } =
       await fetchProgramCourseSummaries("Heartsaver");
-    const auditByCode = Object.fromEntries(
-      await Promise.all(
-        courses.map(async (c) => [
-          c.courseCode,
-          await getAuditDisplayStatus(c.courseCode),
-        ] as const),
-      ),
+    const auditByCode = await getAuditDisplayStatusForCodes(
+      courses.map((c) => c.courseCode),
     );
     return (
       <ProgramCourseList

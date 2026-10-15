@@ -1,3 +1,9 @@
+import {
+  pickStudentField,
+  ROSTER_EMAIL_KEYS,
+  STABLE_ROW_RESPONSE_ID_KEYS,
+} from "@/lib/student-display";
+
 export const COURSE_TYPES = ["BLS", "ACLS", "PALS", "Heartsaver"] as const;
 export type CourseType = (typeof COURSE_TYPES)[number];
 
@@ -25,9 +31,9 @@ export function inferCourseType(courseCode: string): CourseType | "Other" {
 }
 
 export function stableRowId(row: Record<string, string>): string {
-  const email = row["Email Address"] ?? "";
-  const ts = row["Timestamp"] ?? "";
-  const responseId = row["Response ID"] ?? "";
+  const responseId = pickStudentField(row, [...STABLE_ROW_RESPONSE_ID_KEYS]);
   if (responseId) return `rid:${responseId}`;
+  const email = pickStudentField(row, [...ROSTER_EMAIL_KEYS]);
+  const ts = pickStudentField(row, ["Timestamp"]);
   return `e:${email}|t:${ts}`;
 }

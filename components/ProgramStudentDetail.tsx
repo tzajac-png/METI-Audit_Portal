@@ -3,6 +3,8 @@ import type { StudentRow } from "@/lib/student-roster";
 import {
   isStatusComplete,
   pickStudentField,
+  ROSTER_FIRST_NAME_KEYS,
+  ROSTER_LAST_NAME_KEYS,
   STUDENT_DETAIL_FIELDS_ORDER,
 } from "@/lib/student-display";
 import type { StudentResourceLinks } from "@/lib/student-links";
@@ -10,8 +12,14 @@ import type { StudentResourceLinks } from "@/lib/student-links";
 type Props = {
   basePath: string;
   courseCode: string;
+  /** Same segment as in /courses/.../[code]/... when not using raw courseCode */
+  coursePathSegment?: string;
   student: StudentRow;
   links: StudentResourceLinks;
+  showExam?: boolean;
+  /** BLS Skills Check off — column N online certificate link */
+  certificateUrl?: string;
+  evaluationLabel?: string;
 };
 
 function ResourceButton({
@@ -43,11 +51,17 @@ function ResourceButton({
 export function ProgramStudentDetail({
   basePath,
   courseCode,
+  coursePathSegment,
   student,
   links,
+  showExam = true,
+  certificateUrl,
+  evaluationLabel = "Evaluation",
 }: Props) {
-  const first = pickStudentField(student, ["First Name"]);
-  const last = pickStudentField(student, ["Last Name"]);
+  const backSeg =
+    coursePathSegment ?? encodeURIComponent(courseCode);
+  const first = pickStudentField(student, [...ROSTER_FIRST_NAME_KEYS]);
+  const last = pickStudentField(student, [...ROSTER_LAST_NAME_KEYS]);
   const displayName =
     [first, last].filter(Boolean).join(" ") || "Student";
 
@@ -55,7 +69,7 @@ export function ProgramStudentDetail({
     <div className="space-y-8">
       <div>
         <Link
-          href={`${basePath}/${encodeURIComponent(courseCode)}`}
+          href={`${basePath}/${backSeg}`}
           className="text-sm text-red-400/90 hover:text-red-300"
         >
           ← {courseCode}
@@ -70,11 +84,22 @@ export function ProgramStudentDetail({
           href={student._skillsSheetUrl || undefined}
           label="Skills sheet"
         />
-        <ResourceButton href={student._examPdfUrl || undefined} label="Exam" />
+        {showExam ? (
+          <ResourceButton
+            href={student._examPdfUrl || undefined}
+            label="Exam"
+          />
+        ) : null}
         <ResourceButton
           href={links.evaluation || undefined}
-          label="Evaluation"
+          label={evaluationLabel}
         />
+        {certificateUrl !== undefined ? (
+          <ResourceButton
+            href={certificateUrl || undefined}
+            label="Online certificate"
+          />
+        ) : null}
       </section>
 
       <section className="rounded-xl border border-red-900/30 bg-[var(--surface)] p-6">

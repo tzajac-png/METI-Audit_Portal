@@ -32,7 +32,12 @@ yarn-error.log*
 
 # runtime course audit store (server-local JSON + uploads)
 /data/course-audits.json
+/data/course-audit-requests.json
 /data/audit-records.json
 /data/audit-uploads/
 /data/instructor-uploads.json
 /data/instructor-uploads-files/
+/data/ems-ce.json
+/data/ems-ce-files/
+/data/cloud/
+.vercel

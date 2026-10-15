@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAlignedInstructorsOrAuditSessionValid } from "@/lib/auth";
-import { serverlessBlobGuardResponse } from "@/lib/serverless-blob-guard";
+import { serverlessStorageGuardResponse } from "@/lib/serverless-storage-guard";
 import type { AlignedPortalSubmissionStatus } from "@/lib/aligned-instructor-submission-types";
 import {
   getAlignedSubmissionMap,
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const blocked = serverlessBlobGuardResponse();
+  const blocked = serverlessStorageGuardResponse();
   if (blocked) return blocked;
 
   let body: { rowKey?: string; action?: string; status?: string };

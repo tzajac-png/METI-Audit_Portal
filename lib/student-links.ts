@@ -1,6 +1,7 @@
 /**
  * Resolves evaluation URL from spreadsheet column names.
- * Exam and skills sheet links come from fixed columns BN/BP in student-roster.
+ * Exam and skills come from student-roster (_examPdfUrl / _skillsSheetUrl), including
+ * PALS column CO for Exam.
  */
 
 const EVAL_EXACT = [
@@ -9,6 +10,8 @@ const EVAL_EXACT = [
   "Evaluation Link",
   "Evaluation URL",
   "Student Evaluation",
+  "Evaluation Sheet",
+  "Response Edit URL",
 ] as const;
 
 function isHttpUrl(s: string): boolean {
@@ -20,8 +23,11 @@ function pickExactUrl(
   row: Record<string, string>,
   keys: readonly string[],
 ): string {
-  for (const k of keys) {
-    const v = row[k]?.trim() ?? "";
+  const wants = new Set(keys.map((k) => k.trim().toLowerCase()));
+  for (const [key, val] of Object.entries(row)) {
+    if (key.startsWith("_")) continue;
+    if (!wants.has(key.trim().toLowerCase())) continue;
+    const v = (val ?? "").trim();
     if (isHttpUrl(v)) return v;
   }
   return "";

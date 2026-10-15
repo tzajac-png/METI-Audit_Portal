@@ -1,11 +1,7 @@
-import { get } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import fs from "fs";
 import { getDashboardSessionValid } from "@/lib/auth";
-import {
-  blobReadWriteOptions,
-  isInstructorBlobStorageConfigured,
-} from "@/lib/instructor-vercel-blob";
+import { readCloudObject } from "@/lib/cloud-storage";
 import {
   filePathForStoredName,
   getUploadEntry,
@@ -39,18 +35,15 @@ export async function GET(request: Request) {
   const { entry } = found;
   const filename = entry.originalName.replace(/[^\w.\- ()]/g, "_");
 
-  if (entry.blobUrl && isInstructorBlobStorageConfigured()) {
-    const result = await get(entry.blobUrl, {
-      access: "private",
-      ...blobReadWriteOptions(),
-    });
-    if (!result || result.statusCode !== 200 || !result.stream) {
+  if (entry.storageKey) {
+    const buf = await readCloudObject(entry.storageKey);
+    if (!buf) {
       return NextResponse.json(
         { error: "File not available" },
         { status: 404 },
       );
     }
-    return new NextResponse(result.stream, {
+    return new NextResponse(new Uint8Array(buf), {
       status: 200,
       headers: {
         "Content-Type": entry.mimeType,

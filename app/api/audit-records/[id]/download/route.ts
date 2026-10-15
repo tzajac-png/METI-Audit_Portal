@@ -1,12 +1,8 @@
-import { get } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { getAuditSessionValid } from "@/lib/auth";
-import {
-  blobReadWriteOptions,
-  isInstructorBlobStorageConfigured,
-} from "@/lib/instructor-vercel-blob";
+import { readCloudObject } from "@/lib/cloud-storage";
 import { getAuditRecordById, getUploadsDir } from "@/lib/audit-records-store";
 
 export const runtime = "nodejs";
@@ -29,15 +25,12 @@ export async function GET(_request: Request, { params }: Props) {
   const meta = rec.ecardFile;
   const filename = meta.originalName.replace(/[^\w.\- ()]/g, "_");
 
-  if (meta.blobUrl && isInstructorBlobStorageConfigured()) {
-    const result = await get(meta.blobUrl, {
-      access: "private",
-      ...blobReadWriteOptions(),
-    });
-    if (!result || result.statusCode !== 200 || !result.stream) {
+  if (meta.storageKey) {
+    const buf = await readCloudObject(meta.storageKey);
+    if (!buf) {
       return NextResponse.json({ error: "File not available" }, { status: 404 });
     }
-    return new NextResponse(result.stream, {
+    return new NextResponse(new Uint8Array(buf), {
       status: 200,
       headers: {
         "Content-Type": meta.mimeType,

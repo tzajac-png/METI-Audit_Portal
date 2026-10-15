@@ -9,7 +9,7 @@ import {
   isAuditorName,
   type ComplianceChecklist,
 } from "@/lib/audit-constants";
-import { serverlessBlobGuardResponse } from "@/lib/serverless-blob-guard";
+import { serverlessStorageGuardResponse } from "@/lib/serverless-storage-guard";
 import { stripAlignedBoilerplateFromSnapshot } from "@/lib/aligned-instructor-snapshot-filter";
 import {
   createAlignedInstructorAuditRecord,
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const blocked = serverlessBlobGuardResponse();
+  const blocked = serverlessStorageGuardResponse();
   if (blocked) return blocked;
 
   let form: FormData;
@@ -135,7 +135,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const blocked = serverlessBlobGuardResponse();
+  const blocked = serverlessStorageGuardResponse();
   if (blocked) return blocked;
 
   const { searchParams } = new URL(request.url);
